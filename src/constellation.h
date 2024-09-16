@@ -1,5 +1,34 @@
 
 /********************************************************************/
+// Color map and conversion
+//#define TFT_BLACK       0x0000 /*   0,   0,   0 */
+//#define TFT_NAVY        0x000F /*   0,   0, 128 */
+//#define TFT_DARKGREEN   0x03E0 /*   0, 128,   0 */
+//#define TFT_DARKCYAN    0x03EF /*   0, 128, 128 */
+//#define TFT_MAROON      0x7800 /* 128,   0,   0 */
+//#define TFT_PURPLE      0x780F /* 128,   0, 128 */
+//#define TFT_OLIVE       0x7BE0 /* 128, 128,   0 */
+//#define TFT_LIGHTGREY   0xC618 /* 192, 192, 192 */
+//#define TFT_DARKGREY    0x7BEF /* 128, 128, 128 */
+//#define TFT_BLUE        0x001F /*   0,   0, 255 */
+//#define TFT_GREEN       0x07E0 /*   0, 255,   0 */
+//#define TFT_CYAN        0x07FF /*   0, 255, 255 */
+//#define TFT_RED         0xF800 /* 255,   0,   0 */
+//#define TFT_MAGENTA     0xF81F /* 255,   0, 255 */
+//#define TFT_YELLOW      0xFFE0 /* 255, 255,   0 */
+//#define TFT_WHITE       0xFFFF /* 255, 255, 255 */
+//#define TFT_ORANGE      0xFDA0 /* 255, 180,   0 */
+//#define TFT_GREENYELLOW 0xB7E0 /* 180, 255,   0 */
+//#define TFT_PINK        0xFC9F /* 255, 192, 255 */
+
+uint32_t color16to24(uint16_t color565) {
+  uint8_t r = (color565 >> 8) & 0xF8; r |= (r >> 5);
+  uint8_t g = (color565 >> 3) & 0xFC; g |= (g >> 6);
+  uint8_t b = (color565 << 3) & 0xF8; b |= (b >> 5);
+  return ((uint32_t)r << 16) | ((uint32_t)g << 8) | ((uint32_t)b << 0);
+}
+
+/********************************************************************/
 // Satellite Constellation Map Generator
 
 uint8_t drawSatConstellation(int16_t compAngle) {
@@ -20,18 +49,18 @@ uint8_t drawSatConstellation(int16_t compAngle) {
   char _dispStr[4];
 
   // draw main circles, one at 0deg, and one at 45deg elevation
-  display.drawCircle(mapCenterX, mapCenterY, mapRadius, TFT_WHITE);
-  display.drawCircle(mapCenterX, mapCenterY, (mapRadius>>1)+1, TFT_WHITE);
+  display.drawCircle(mapCenterX, mapCenterY, mapRadius, color16to24(TFT_WHITE));
+  display.drawCircle(mapCenterX, mapCenterY, (mapRadius>>1)+1, color16to24(TFT_WHITE));
 
   // draw lines at 0, 45, 90, 135 etc degrees azimuth
   for (int16_t i = 0; i <= 7; i++) {
     xCoord = round(-sin(radians((i * 45) + 180 + compAngle)) * mapRadius);
     yCoord = round(cos(radians((i * 45) + 180 + compAngle)) * mapRadius);
-    display.drawLine(mapCenterX, mapCenterY, xCoord + mapCenterX, yCoord + mapCenterY, TFT_WHITE);
+    display.drawLine(mapCenterX, mapCenterY, xCoord + mapCenterX, yCoord + mapCenterY, color16to24(TFT_WHITE));
     if(i % 2) continue;
     xCoord = round(-sin(radians((i * 45) + 180 + compAngle)) * (mapRadius - 8));
     yCoord = round(cos(radians((i * 45) + 180 + compAngle)) * (mapRadius - 8));
-    display.fillCircle(xCoord + mapCenterX, yCoord + mapCenterY, 12, TFT_BLACK);
+    display.fillCircle(xCoord + mapCenterX, yCoord + mapCenterY, 12, color16to24(TFT_BLACK));
     char label;
     switch(i) {
       case 0: label = 'N'; break;
@@ -39,7 +68,7 @@ uint8_t drawSatConstellation(int16_t compAngle) {
       case 4: label = 'S'; break;
       case 6: label = 'W'; break;
     }
-    display.drawChar(xCoord + mapCenterX - 5, yCoord + mapCenterY - 7, label, TFT_BLACK, TFT_WHITE, 2);
+    display.drawChar(xCoord + mapCenterX - 5, yCoord + mapCenterY - 7, label, color16to24(TFT_BLACK), color16to24(TFT_WHITE), 2);
   }
 
   // Check NAVSAT Packet
@@ -63,21 +92,21 @@ uint8_t drawSatConstellation(int16_t compAngle) {
 
     // Sat ring color based on SNR
     if(navsatInfo.svSortList[i].cno >= 35) {
-      satRingColor = TFT_WHITE;
+      satRingColor = color16to24(TFT_WHITE);
     } else if(navsatInfo.svSortList[i].cno >=20) {
-      satRingColor = TFT_YELLOW;
+      satRingColor = color16to24(TFT_YELLOW);
     } else {
-      satRingColor = TFT_ORANGE;
+      satRingColor = color16to24(TFT_ORANGE);
     }
     display.fillCircle(xCoord + mapCenterX, yCoord + mapCenterY, satRingRadius, satRingColor);
 
     // Sat color based on svUsed
     if(navsatInfo.svSortList[i].svUsed) {
-      satColor = TFT_BLUE;
+      satColor = color16to24(TFT_BLUE);
     } else if(navsatInfo.svSortList[i].healthy) {
-      satColor = TFT_RED;
+      satColor = color16to24(TFT_RED);
     } else {
-      satColor = TFT_BLACK;
+      satColor = color16to24(TFT_BLACK);
     }
     display.fillCircle(xCoord + mapCenterX, yCoord + mapCenterY, satRadius, satColor);
 
