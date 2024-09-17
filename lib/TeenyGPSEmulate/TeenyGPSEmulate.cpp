@@ -44,7 +44,12 @@ bool TeenyGPSEmulate::init(HardwareSerial &serialPort_,
      (ubxModuleType != TGPSE_UBX_M10_MODULE)) {
     return false;
   }
+  //serialPort->begin(emulatorSettings.baudRate);
+#ifdef CONFIG_IDF_TARGET_ESP32S3 // Core S3SE fix using the correct serial pins
+  serialPort->begin(emulatorSettings.baudRate, SERIAL_8N1, RXD2, TXD2);
+#else
   serialPort->begin(emulatorSettings.baudRate);
+#endif
   return true;
 }
 

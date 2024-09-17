@@ -23,16 +23,11 @@ class BatteryStatus {
     //voltage = M5.Axp.GetBatVoltage();
     //charging = M5.Axp.isCharging();
       voltage = M5.Power.getBatteryVoltage();
-      voltage = M5.Power.isCharging();
-      float rawPercentage = (voltage < 3.2f) ? 0 : (voltage - 3.2f) * 100;
-      if(rawPercentage > 100) {
-        percentage = 100;
-      } else {
-        percentage = static_cast<uint8_t>(rawPercentage);
-      }
+      percentage = static_cast<uint8_t>(M5.Power.getBatteryLevel());
+      charging = M5.Power.isCharging();
     }
 
-    float getVoltage() {
+    int16_t getVoltage() {
       readStatus();
       return voltage;
     }
@@ -51,9 +46,9 @@ class BatteryStatus {
 
     uint32_t samplePeriod = 1000;   // sample once a second
     uint32_t lastSampleTime = millis() - 1000;
-    float   voltage;
-    uint8_t percentage;
-    bool    charging;
+    int16_t  voltage;
+    uint8_t  percentage;
+    bool     charging;
 
 };
 

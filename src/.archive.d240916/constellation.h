@@ -1,6 +1,6 @@
 
 /********************************************************************/
-// Color map and conversion
+// Color map from TFT_eSPI library
 //#define TFT_BLACK       0x0000 /*   0,   0,   0 */
 //#define TFT_NAVY        0x000F /*   0,   0, 128 */
 //#define TFT_DARKGREEN   0x03E0 /*   0, 128,   0 */
@@ -21,6 +21,8 @@
 //#define TFT_GREENYELLOW 0xB7E0 /* 180, 255,   0 */
 //#define TFT_PINK        0xFC9F /* 255, 192, 255 */
 
+/********************************************************************/
+// Color conversion from uint16_t/565 to uint32_t/888
 uint32_t color16to24(uint16_t color565) {
   uint8_t r = (color565 >> 8) & 0xF8; r |= (r >> 5);
   uint8_t g = (color565 >> 3) & 0xFC; g |= (g >> 6);

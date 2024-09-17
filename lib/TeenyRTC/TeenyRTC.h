@@ -41,7 +41,7 @@ class TeenyRTC {
     // Constructor
     TeenyRTC();
 
-    virtual bool setup() = 0;
+    virtual bool setup(bool hasBatteryBackup=false) = 0;
 
     virtual void resetRTCTime() = 0;
 
@@ -134,7 +134,7 @@ class TeenyCore2RTC : public TeenyRTC {
     TeenyCore2RTC(const TeenyCore2RTC&);
     TeenyCore2RTC& operator=(const TeenyCore2RTC&);
 
-    bool setup();
+    bool setup(bool hasBatteryBackup=false);
 
     void resetRTCTime();
 
@@ -176,7 +176,7 @@ class TeenyTeensy41RTC : public TeenyRTC {
     TeenyTeensy41RTC(const TeenyTeensy41RTC&);
     TeenyTeensy41RTC& operator=(const TeenyTeensy41RTC&);
 
-    bool setup();
+    bool setup(bool hasBatteryBackup=false);
 
     void resetRTCTime();
 
@@ -218,7 +218,7 @@ class TeenyRP2040RTC : public TeenyRTC {
     TeenyRP2040RTC(const TeenyRP2040RTC&);
     TeenyRP2040RTC& operator=(const TeenyRP2040RTC&);
 
-    bool setup();
+    bool setup(bool hasBatteryBackup=false);
 
     void resetRTCTime();
 
@@ -261,7 +261,7 @@ class TeenyZeroRTC : public TeenyRTC {
     TeenyZeroRTC(const TeenyZeroRTC&);
     TeenyZeroRTC& operator=(const TeenyZeroRTC&);
 
-    bool setup();
+    bool setup(bool hasBatteryBackup=false);
 
     void resetRTCTime();
 
@@ -306,7 +306,7 @@ class TeenyDS3231RTC : public TeenyRTC {
     TeenyDS3231RTC(const TeenyDS3231RTC&);
     TeenyDS3231RTC& operator=(const TeenyDS3231RTC&);
 
-    bool setup();
+    bool setup(bool hasBatteryBackup=false);
 
     void resetRTCTime();
 
@@ -352,7 +352,7 @@ class TeenyM5BM8563 : public TeenyRTC {
     TeenyM5BM8563(const TeenyM5BM8563&);
     TeenyM5BM8563& operator=(const TeenyM5BM8563&);
 
-    bool setup();
+    bool setup(bool hasBatteryBackup=false);
 
     void resetRTCTime();
 

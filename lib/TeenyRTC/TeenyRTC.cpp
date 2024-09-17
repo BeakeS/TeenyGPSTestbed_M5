@@ -263,8 +263,8 @@ TeenyCore2RTC::TeenyCore2RTC() { }
 TeenyCore2RTC::~TeenyCore2RTC() { }
 
 /********************************************************************/
-bool TeenyCore2RTC::setup() {
-  _valid = false;
+bool TeenyCore2RTC::setup(bool hasBatteryBackup) {
+  _valid = hasBatteryBackup;
   return true;
 }
 
@@ -404,8 +404,8 @@ TeenyTeensy41RTC::TeenyTeensy41RTC() { }
 TeenyTeensy41RTC::~TeenyTeensy41RTC() { }
 
 /********************************************************************/
-bool TeenyTeensy41RTC::setup() {
-  _valid = false;
+bool TeenyTeensy41RTC::setup(bool hasBatteryBackup) {
+  _valid = hasBatteryBackup;
   // set the Time library to use Teensy's RTC to keep time
   setSyncProvider(getTeensy3Time);
   return true;
@@ -526,8 +526,8 @@ TeenyRP2040RTC::TeenyRP2040RTC() { }
 TeenyRP2040RTC::~TeenyRP2040RTC() { }
 
 /********************************************************************/
-bool TeenyRP2040RTC::setup() {
-  _valid = false;
+bool TeenyRP2040RTC::setup(bool hasBatteryBackup) {
+  _valid = hasBatteryBackup;
   rtc_init();
   return true;
 }
@@ -660,8 +660,8 @@ TeenyZeroRTC::TeenyZeroRTC() { }
 TeenyZeroRTC::~TeenyZeroRTC() { }
 
 /********************************************************************/
-bool TeenyZeroRTC::setup() {
-  _valid = false;
+bool TeenyZeroRTC::setup(bool hasBatteryBackup) {
+  _valid = hasBatteryBackup;
   rtc.begin();
   return true;
 }
@@ -778,16 +778,11 @@ TeenyDS3231RTC::TeenyDS3231RTC() { }
 TeenyDS3231RTC::~TeenyDS3231RTC() { }
 
 /********************************************************************/
-bool TeenyDS3231RTC::setup() {
+bool TeenyDS3231RTC::setup(bool hasBatteryBackup) {
+  _valid = hasBatteryBackup;
   if(rtc.begin()) {
-    if(rtc.lostPower()) {
-      // need to init RTC to prevent wacky date/time progression
-      resetRTCTime();
-      _valid = false;
-    } else {
-      _valid = true;
-    }
-    return true;
+    isValid();   // run this to set RTC _valid flag
+    return true; // setup is successful even if RTC is not valid
   }
   return false;
 }
@@ -798,8 +793,6 @@ bool TeenyDS3231RTC::isValid() {
     // need to init RTC to prevent wacky date/time progression
     resetRTCTime();
     _valid = false;
-  } else {
-    _valid = true;
   }
   return _valid;
 }
@@ -916,16 +909,11 @@ TeenyM5BM8563::TeenyM5BM8563() { }
 TeenyM5BM8563::~TeenyM5BM8563() { }
 
 /********************************************************************/
-bool TeenyM5BM8563::setup() {
+bool TeenyM5BM8563::setup(bool hasBatteryBackup) {
+  _valid = hasBatteryBackup;
   if(M5.Rtc.begin() && M5.Rtc.isEnabled()) {
-    if(M5.Rtc.getVoltLow()) {
-      // need to init RTC to prevent wacky date/time progression
-      resetRTCTime();
-      _valid = false;
-    } else {
-      _valid = true;
-    }
-    return true;
+    isValid();   // run this to set RTC _valid flag
+    return true; // setup is successful even if RTC is not valid
   }
   return false;
 }
@@ -936,8 +924,6 @@ bool TeenyM5BM8563::isValid() {
     // need to init RTC to prevent wacky date/time progression
     resetRTCTime();
     _valid = false;
-  } else {
-    _valid = true;
   }
   return _valid;
 }
