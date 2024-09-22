@@ -1,25 +1,25 @@
 # TeenyGPSTestbed_M5
 
 TeenyGPSTestbed_M5 is an application for configuring and evaluating Ublox GPS modules.  This application runs on M5Stack Unified IoT Development Kit.
-The application was developed for Ublox M8 and M10 GPS modules connected to the Core2's Serial2 interface.  The application also has a Ublox GPS emulation mode which can be used for testing navigation applications when no GPS signals can be acquired or when a fixed, repeatable GPS source is desired.
+The application was developed for Ublox M8 and M10 GPS modules connected to M5Stack Core2/CoreS3 Serial interface.  The application also has a Ublox GPS emulation mode which can be used for testing navigation applications when no GPS signals can be acquired or when a fixed, repeatable GPS source is desired.
 
 Menu Navigation:
 TeenyGPSTestbed_M5 utilizes the TeenyMenu library for menu/page navigation via a three button interface.
 The TeenyMenu library was derived from the GEM (Good Enough Menu) Arduino library in 2021.
 
 Navigating the TeenyGPSTestbed_M5 menu pages on the Core2 utilizes the Core2's three touch buttons adjacent to the display as follows:
-- The top button single touch is SCROLL_UP.
-- The bottom button single touch is SCROLL_DOWN.
+- The top button single-touch is SCROLL_UP.
+- The bottom button single-touch is SCROLL_DOWN.
 - The middle button single touch is SELECT.
   - If the menu item you selected is a MENU LINK item (with '>' on the right), it switches to the linked menu page.
-    - Middle button long touch returns you to the previous menu page.
+    - Middle button long-touch returns you to the previous menu page.
   - If the menu item you selected is a PARAMETER ITEM (name:value) the item switches to edit mode (with '+/-' on the right).
     - Use scroll up and down to change the value.
-    - Middle button single touch will save the selected value and exit edit mode.
-    - Middle button long touch will exit edit mode without saving.
+    - Middle button single-touch will save the selected value and exit edit mode.
+    - Middle button-long touch will exit edit mode without saving.
   - If the menu item you selected is a BOOLEAN ITEM, select will toggle the item's value.
   - If the menu item you selected is an ACTION ITEM (with '>>' on the left side), the action (function call) is executed.
-  - Some menus also have an optional EXIT ITEM ('<exit') which returns to the previous menu page just like middle button long touch does.
+  - Some menus also have an optional EXIT ITEM ('<exit') which returns to the previous menu page just like middle button long-touch does.
 
 TeenyGPSTestbed_M5 offers five modes of operation:
 
