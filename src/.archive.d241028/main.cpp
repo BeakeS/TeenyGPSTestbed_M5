@@ -103,7 +103,7 @@ void setup() {
   // Setup display
   display_setup();
   if(displayEnabled) {
-    displayPV.prt_str("TeenyGPSTestbed_C2", 20, 0, 0);
+    displayPV.prt_str("TeenyGPSTestbed_M5", 20, 0, 0);
     display_display();
     delay(200);
   }
