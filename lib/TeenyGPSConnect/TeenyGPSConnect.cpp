@@ -72,7 +72,7 @@ bool TeenyGPSConnect::gnss_init(HardwareSerial &serialPort_, uint32_t baudRate_,
 
 /********************************************************************/
 bool TeenyGPSConnect::gnss_setSerialRate() {
-  //serialPort->begin(baudRate);
+  // Try the requested baud rate first
 #ifdef CONFIG_IDF_TARGET_ESP32S3 // Core S3SE fix using the correct serial pins
   serialPort->begin(baudRate, SERIAL_8N1, RXD2, TXD2);
 #else
@@ -80,43 +80,41 @@ bool TeenyGPSConnect::gnss_setSerialRate() {
 #endif
   if(gnss.begin(*serialPort)) {
     return true;
-  } else {
-    //serialPort->begin(115200); // default for many gps modules
+  }
+  // Try 115200 baud rate next
 #ifdef CONFIG_IDF_TARGET_ESP32S3 // Core S3SE fix using the correct serial pins
-    serialPort->begin(115200, SERIAL_8N1, RXD2, TXD2);
+  serialPort->begin(115200, SERIAL_8N1, RXD2, TXD2);
 #else
-    serialPort->begin(115200);
+  serialPort->begin(115200);
+#endif
+  if(gnss.begin(*serialPort)) {
+    gnss.setSerialRate(baudRate);
+    delay(100); // recovery time for gnss module baud rate change
+#ifdef CONFIG_IDF_TARGET_ESP32S3 // Core S3SE fix using the correct serial pins
+    serialPort->begin(baudRate, SERIAL_8N1, RXD2, TXD2);
+#else
+    serialPort->begin(baudRate);
 #endif
     if(gnss.begin(*serialPort)) {
-      gnss.setSerialRate(baudRate);
-      delay(100); // recovery time for gnss module baud rate change
-      //serialPort->begin(baudRate);
+      return true;
+    }
+  }
+  // Try 9600 baud rate last
 #ifdef CONFIG_IDF_TARGET_ESP32S3 // Core S3SE fix using the correct serial pins
-      serialPort->begin(baudRate, SERIAL_8N1, RXD2, TXD2);
+  serialPort->begin(9600, SERIAL_8N1, RXD2, TXD2);
 #else
-      serialPort->begin(baudRate);
+  serialPort->begin(9600);
 #endif
-      if(gnss.begin(*serialPort)) {
-        return true;
-      } else {
-        //serialPort->begin(9600); // default for many gps modules
+  if(gnss.begin(*serialPort)) {
+    gnss.setSerialRate(baudRate);
+    delay(100); // recovery time for gnss module baud rate change
 #ifdef CONFIG_IDF_TARGET_ESP32S3 // Core S3SE fix using the correct serial pins
-        serialPort->begin(9600, SERIAL_8N1, RXD2, TXD2);
+    serialPort->begin(baudRate, SERIAL_8N1, RXD2, TXD2);
 #else
-        serialPort->begin(9600);
+    serialPort->begin(baudRate);
 #endif
-        if(gnss.begin(*serialPort)) {
-          gnss.setSerialRate(baudRate);
-          delay(100); // recovery time for gnss module baud rate change
-          //serialPort->begin(baudRate);
-#ifdef CONFIG_IDF_TARGET_ESP32S3 // Core S3SE fix using the correct serial pins
-          serialPort->begin(baudRate, SERIAL_8N1, RXD2, TXD2);
-#else
-          serialPort->begin(baudRate);
-#endif
-          return gnss.begin(*serialPort);
-        }
-      }
+    if(gnss.begin(*serialPort)) {
+      return true;
     }
   }
   return false;
