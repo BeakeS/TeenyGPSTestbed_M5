@@ -1,7 +1,7 @@
 # TeenyGPSTestbed_M5
 
 TeenyGPSTestbed_M5 is an application for configuring and evaluating Ublox GPS modules.  This application runs on M5Stack Unified IoT Development Kit.
-The application was developed for Ublox M8 and M10 GPS modules connected to M5Stack Core2/CoreS3 Serial interface.  The application also has a Ublox GPS emulation mode which can be used for testing navigation applications when no GPS signals can be acquired or when a fixed, repeatable GPS source is desired.
+The application was developed for Ublox M8, M9, and M10 GPS modules connected to M5Stack Core2/CoreS3 Serial interface.  The application also has a Ublox GPS emulation mode which can be used for testing navigation applications when no GPS signals can be acquired or when a fixed, repeatable GPS source is desired.
 
 Menu Navigation:
 TeenyGPSTestbed_M5 utilizes the TeenyMenu library for menu/page navigation via a three button interface.
