@@ -74,30 +74,34 @@ struct GnssData {
   uint32_t hacc;        // Horizontal accuracy estimate in meters
   uint32_t vacc;        // Vertical accuracy estimate in meters
   float pdop;           // Positional Dilution of Precision
-  // Date & Time
-  uint16_t year;
+  bool invalidLlh;      // 1 = Invalid lon, lat, height and hMSL
   uint8_t pad06a;
   uint8_t pad06b;
-  uint8_t month;
+  uint8_t pad06c;
+  // Date & Time
+  uint16_t year;
   uint8_t pad07a;
   uint8_t pad07b;
-  uint8_t pad07c;
-  uint8_t day;
+  uint8_t month;
   uint8_t pad08a;
   uint8_t pad08b;
   uint8_t pad08c;
-  uint8_t hour;
+  uint8_t day;
   uint8_t pad09a;
   uint8_t pad09b;
   uint8_t pad09c;
-  uint8_t minute;
+  uint8_t hour;
   uint8_t pad10a;
   uint8_t pad10b;
   uint8_t pad10c;
-  uint8_t second;
+  uint8_t minute;
   uint8_t pad11a;
   uint8_t pad11b;
   uint8_t pad11c;
+  uint8_t second;
+  uint8_t pad12a;
+  uint8_t pad12b;
+  uint8_t pad12c;
 } __attribute__ ((__packed__));
 
 /********************************************************************/
@@ -162,6 +166,7 @@ class TeenyGPSConnect {
     uint32_t getHAccEst();     // Horizontal accuracy estimate in meters
     uint32_t getVAccEst();     // Vertical accuracy estimate in meters
     float getPDOP();           // Positional Dilution of Precision
+    bool getInvalidLlh();      // 1 = Invalid lon, lat, height and hMSL
     // Date & Time
     bool isDateValid();
     uint16_t getYear();

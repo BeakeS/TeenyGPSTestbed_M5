@@ -232,6 +232,7 @@ bool TeenyGPSConnect::getNAVPVT() {
       data.hacc = gnss.getHorizontalAccEst() / 1000;
       data.vacc = gnss.getVerticalAccEst() / 1000;
       data.pdop = ((float)gnss.getPDOP()) * 0.01;
+      data.invalidLlh = gnss.getInvalidLlh();
     }
     else {
       // No valid fix
@@ -287,6 +288,7 @@ bool TeenyGPSConnect::pollNAVPVT() {
     data.hacc = gnss.getHorizontalAccEst() / 1000;
     data.vacc = gnss.getVerticalAccEst() / 1000;
     data.pdop = ((float)gnss.getPDOP()) * 0.01;
+    data.invalidLlh = gnss.getInvalidLlh();
     data.date_valid = gnss.getDateValid();
     data.year = gnss.getYear();
     data.month = gnss.getMonth();
@@ -343,6 +345,9 @@ uint32_t TeenyGPSConnect::getVAccEst() {
 }
 float TeenyGPSConnect::getPDOP() {
   return data.pdop;
+}
+bool TeenyGPSConnect::getInvalidLlh() {
+  return data.invalidLlh;
 }
 
 /********************************************************************/

@@ -1535,6 +1535,7 @@ void TeenyUbloxConnect::setNAVPVTPacketInfo() {
   ubloxNAVPVTInfo.headAcc |= ubloxNAVPVTPacketBuffer.payload[75] << 24;
   ubloxNAVPVTInfo.pDOP = ubloxNAVPVTPacketBuffer.payload[76];
   ubloxNAVPVTInfo.pDOP |= ubloxNAVPVTPacketBuffer.payload[77] << 8;
+  ubloxNAVPVTInfo.invalidLlh = ubloxNAVPVTPacketBuffer.payload[78] & 0x01;
 }
 
 /********************************************************************/
@@ -1621,6 +1622,9 @@ uint32_t TeenyUbloxConnect::getHeadingAccEst() {
 }
 uint16_t TeenyUbloxConnect::getPDOP() {
   return ubloxNAVPVTInfo.pDOP;
+}
+bool TeenyUbloxConnect::getInvalidLlh() {
+  return ubloxNAVPVTInfo.invalidLlh;
 }
 
 
