@@ -95,7 +95,8 @@ bool TeenyGPSConnect::gnss_setSerialRate() {
 #else
     serialPort->begin(baudRate);
 #endif
-    if(gnss.begin(*serialPort)) {
+    // Wait up to 3000 msec in case module powers up with 10hz NEMA/UBLOX output frequency
+    if(gnss.begin(*serialPort, 3000)) {
       return true;
     }
   }
