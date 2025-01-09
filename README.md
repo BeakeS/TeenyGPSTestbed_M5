@@ -14,8 +14,8 @@ Buttons
  - Middle Button: Select (with additional functionalities based on the menu item type)
 
 Menu Item Behavior
- - MENU LINK Item: Tapping the middle button switches to the linked menu page. A long press on the middle button returns to the previous page.
- - PARAMETER ITEM: Allows editing of values. Use the scroll buttons to adjust the value. Press the middle button to save changes or long-press it to exit without saving.
+ - MENU LINK ITEM: Tapping the middle button switches to the linked menu page. A long press on the middle button returns to the previous page.
+ - PARAMETER ITEM: Allows editing of values. Use the scroll buttons to adjust the value. Tap the middle button to save changes or long-press it to exit without saving.
  - BOOLEAN ITEM: Tapping the middle button toggles the value (e.g., ON/OFF).
  - ACTION ITEM: Executes a function call when selected.
  - EXIT ITEM: Returns to the previous menu page.
@@ -33,7 +33,7 @@ Modes of Operation
 
 2. GPSLOG: UBLOX Packet Logger
  - Logs Ublox NAV-PVT, NAV-STATUS, and NAV-SAT raw packets for further analysis and/or emulation.
- - Can export data as GPX or KML files for mapping or animation.
+ - Can also export data as GPX or KML files for mapping or animation.
 
 ![logger](https://github.com/user-attachments/assets/76e60714-89a7-4215-b9e3-44fe045ecd9c)
 
