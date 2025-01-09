@@ -32,6 +32,7 @@ void deviceMode_init() {
                 gps.getProtocolVersionHigh(),
                 gps.getProtocolVersionLow());
         msg_update(_dispStr);
+        gps_writeGNSSConfigFile();
         deviceState.GPSRESET = GPS_NORESET;
       } else {
         gpsEnabled = false;

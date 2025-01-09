@@ -124,6 +124,12 @@ TeenyMenuItem menuItemGPSScfgLabel0("");
 TeenyMenuItem menuItemGPSScfgLabel1("");
 TeenyMenuItem menuItemGPSScfgLabel2("");
 //
+// ublox module type
+uint8_t menuUbloxModuleType = 0;
+uint8_t menuUbloxModuleTypeMin = 0;
+uint8_t menuUbloxModuleTypeMax = 99;
+TeenyMenuItem menuItemUbloxModuleType("UbloxModule", menuUbloxModuleType, menuUbloxModuleTypeMin, menuUbloxModuleTypeMax, true);
+//
 // gnss satellite select info
 void menu_pollGNSSSelInfoCB(); // forward declaration
 TeenyMenuPage menuPageGNSSSelInfo("GNSS SELECT INFO", menu_pollGNSSSelInfoCB);
@@ -465,6 +471,7 @@ void menu_setup() {
   //menuPageGPSNsat.addMenuItem(menuItemGPSNsatExit);
   menuPageMain.addMenuItem(menuItemGPSScfg);
   //menuPageGPSScfg.addMenuItem(menuItemGPSScfgLabel0);
+  menuPageGPSScfg.addMenuItem(menuItemUbloxModuleType);
   menuPageGPSScfg.addMenuItem(menuItemGNSSSelInfo);
   menuPageGNSSSelInfo.addMenuItem(menuItemGNSSSelInfoLabel0);
   menuPageGNSSSelInfo.addMenuItem(menuItemGNSSSelInfoLabel1);
@@ -484,7 +491,7 @@ void menu_setup() {
   menuPageGNSSCfgInfo.addMenuItem(menuItemGNSSCfgInfoLabel8);
   menuPageGNSSCfgInfo.addMenuItem(menuItemGNSSCfgInfoLabel9);
   menuPageGNSSCfgInfo.addMenuItem(menuItemGNSSCfgInfoExit);
-  menuPageGPSScfg.addMenuItem(menuItemGPSScfgLabel1);
+  //menuPageGPSScfg.addMenuItem(menuItemGPSScfgLabel1);
   menuPageGPSScfg.addMenuItem(menuItemGNSSCfgGPSToggle);
   menuPageGPSScfg.addMenuItem(menuItemGNSSCfgSBASToggle);
   menuPageGPSScfg.addMenuItem(menuItemGNSSCfgGalileoToggle);
@@ -1082,6 +1089,7 @@ void menu_entrGPSScfgCB() {
   deviceState.DEVICE_MODE = DM_GPSSCFG;
   deviceMode_init();
   menu_gnssConfigurator('\0', "");
+  menuUbloxModuleType = gps.getUbloxModuleType();
   displayRefresh = true;
 }
 

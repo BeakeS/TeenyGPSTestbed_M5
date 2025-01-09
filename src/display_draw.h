@@ -168,6 +168,8 @@ void display_refresh() {
             displayPV.prt_str(_dispStr, 20, 0, 210);
             displayPV.prt_str("PosDOP:  ", 9, 0, 228);
             displayPV.prt_float(min(gps.getPDOP(), 9.9), 3, 1, 108, 228);
+            sprintf(_dispStr, "InvLlh:  %s", gps.getInvalidLlh() ? "TRUE" : "FALSE");
+            displayPV.prt_str(_dispStr, 20, 0, 246);
           } else {
             sprintf(_dispStr, "**  NO GNSS FIX  **");
             displayPV.prt_str(_dispStr, 19, 6, 90);

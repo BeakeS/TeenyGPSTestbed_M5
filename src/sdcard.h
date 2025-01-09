@@ -70,6 +70,33 @@ bool sdcard_deviceStateRestore() {
 }
 
 /********************************************************************/
+// GNSS Config File Writer
+/********************************************************************/
+uint32_t gnssConfigFileWriteCount;
+/********************************************************************/
+bool sdcard_openGNSSConfigFile() {
+  if(!sdcardEnabled) return false;
+  if(SD.exists("/GNSSCNFG.txt")) {
+    if(!SD.remove("/GNSSCNFG.txt")) return false;
+  }
+  //SdFile::dateTimeCallback(sdDateTimeCB);
+  sdFile = SD.open("/GNSSCNFG.txt", FILE_WRITE);
+  if(!sdFile) return false;
+  gnssConfigFileWriteCount = 0;
+  return true;
+}
+/********************************************************************/
+void sdcard_writeGNSSConfigFile(const uint8_t *buf, size_t size) {
+  sdFile.write(buf, size);
+  gnssConfigFileWriteCount++;
+}
+/********************************************************************/
+uint16_t sdcard_closeGNSSConfigFile() {
+  sdFile.close();
+  return gnssConfigFileWriteCount;
+}
+
+/********************************************************************/
 // UBX Logging File Writer
 /********************************************************************/
 bool     ubxLoggingInProgress = false;
