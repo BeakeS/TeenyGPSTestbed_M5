@@ -535,13 +535,13 @@ bool TeenyRP2040RTC::setup(bool hasBatteryBackup) {
 /********************************************************************/
 void TeenyRP2040RTC::resetRTCTime() {
   datetime_t t = {
-    .year  = RTC_DATETIME_RESET.year,
-    .month = RTC_DATETIME_RESET.month,
-    .day   = RTC_DATETIME_RESET.day,
+    .year  = (int16_t)RTC_DATETIME_RESET.year,
+    .month = (int8_t)RTC_DATETIME_RESET.month,
+    .day   = (int8_t)RTC_DATETIME_RESET.day,
     .dotw  = 0,
-    .hour  = RTC_DATETIME_RESET.hour,
-    .min   = RTC_DATETIME_RESET.minute,
-    .sec   = RTC_DATETIME_RESET.second
+    .hour  = (int8_t)RTC_DATETIME_RESET.hour,
+    .min   = (int8_t)RTC_DATETIME_RESET.minute,
+    .sec   = (int8_t)RTC_DATETIME_RESET.second
   };
   rtc_set_datetime(&t);
   _valid = false;
@@ -554,13 +554,13 @@ bool TeenyRP2040RTC::setRTCTime(rtc_datetime_t dateTime) {
     return false;
   }
   datetime_t t = {
-    .year  = dateTime.year,
-    .month = dateTime.month,
-    .day   = dateTime.day,
+    .year  = (int16_t)dateTime.year,
+    .month = (int8_t)dateTime.month,
+    .day   = (int8_t)dateTime.day,
     .dotw  = 0,
-    .hour  = dateTime.hour,
-    .min   = dateTime.minute,
-    .sec   = dateTime.second
+    .hour  = (int8_t)dateTime.hour,
+    .min   = (int8_t)dateTime.minute,
+    .sec   = (int8_t)dateTime.second
   };
   rtc_set_datetime(&t);
   _valid = true;
