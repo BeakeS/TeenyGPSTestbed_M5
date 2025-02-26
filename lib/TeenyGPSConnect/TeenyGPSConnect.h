@@ -136,13 +136,15 @@ class TeenyGPSConnect {
     bool factoryReset();
 
     // UBX-CFG-GNSS
-    bool pollGNSSSelectionInfo();
-    bool pollGNSSConfigInfo();
+    bool pollGNSSSelection();
+    bool pollGNSSConfig();
     bool setGNSSConfig(uint8_t gnssId, bool enable);
     bool setGNSSSignalConfig(uint8_t gnssId, const char* signalName, bool enable);
+    bool setGNSSConfigState(ubloxCFGGNSSState_t gnssConfigState);
     // GNSS config info
     ubloxMONGNSSInfo_t getGNSSSelectionInfo();
     ubloxCFGGNSSInfo_t getGNSSConfigInfo();
+    ubloxCFGGNSSState_t getGNSSConfigState();
 
     // UBX-NAV-PVT
     bool getNAVPVT();

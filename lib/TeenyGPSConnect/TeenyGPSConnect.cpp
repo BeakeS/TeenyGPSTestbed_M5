@@ -171,8 +171,8 @@ bool TeenyGPSConnect::factoryReset() {
 /********************************************************************/
 // UBX-CFG-GNSS
 /********************************************************************/
-bool TeenyGPSConnect::pollGNSSSelectionInfo() {
-  return gnss.pollGNSSSelectionInfo();
+bool TeenyGPSConnect::pollGNSSSelection() {
+  return gnss.pollGNSSSelection();
 }
 
 /********************************************************************/
@@ -181,13 +181,18 @@ ubloxMONGNSSInfo_t TeenyGPSConnect::getGNSSSelectionInfo() {
 }
 
 /********************************************************************/
-bool TeenyGPSConnect::pollGNSSConfigInfo() {
-  return gnss.pollGNSSConfigInfo();
+bool TeenyGPSConnect::pollGNSSConfig() {
+  return gnss.pollGNSSConfig();
 }
 
 /********************************************************************/
 ubloxCFGGNSSInfo_t TeenyGPSConnect::getGNSSConfigInfo() {
   return gnss.getGNSSConfigInfo();
+}
+
+/********************************************************************/
+ubloxCFGGNSSState_t TeenyGPSConnect::getGNSSConfigState() {
+  return gnss.getGNSSConfigState();
 }
 
 /********************************************************************/
@@ -204,8 +209,13 @@ bool TeenyGPSConnect::setGNSSConfig(uint8_t gnssId, bool enable) {
 
 /********************************************************************/
 bool TeenyGPSConnect::setGNSSSignalConfig(uint8_t gnssId, const char* signalName, bool enable) {
-  // Only used for M10 modules
+  // Not used for Ublox M8 modules
   return gnss.setGNSSSignalConfig(gnssId, signalName, enable);
+}
+
+/********************************************************************/
+bool TeenyGPSConnect::setGNSSConfigState(ubloxCFGGNSSState_t gnssConfigState) {
+  return gnss.setGNSSConfigState(gnssConfigState);
 }
 
 /********************************************************************/

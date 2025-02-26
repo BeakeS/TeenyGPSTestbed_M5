@@ -32,6 +32,7 @@ bool TeenyUbloxConnect::begin(Stream &serialPort_, uint16_t maxWait_) {
   serialPort = &serialPort_;
   resetNAVSTATUSInfo(); // reset spoofing flags
   ubloxModuleType = UBLOX_UNKNOWN_MODULE;
+  ubloxCFGGNSSInfoValid = false;
   // Try three times
   bool connected = false;
   if(pollUART1Port_M8(maxWait_, true)) {
@@ -310,7 +311,7 @@ uint8_t TeenyUbloxConnect::getProtocolVersionLow(uint16_t maxWait_) {
 }
 
 /********************************************************************/
-bool TeenyUbloxConnect::pollGNSSSelectionInfo(uint16_t maxWait_) {
+bool TeenyUbloxConnect::pollGNSSSelection(uint16_t maxWait_) {
   commandPacket.messageClass = UBX_CLASS_MON;
   commandPacket.messageID = UBX_MON_GNSS;
   commandPacket.payloadLength = 0;
@@ -330,18 +331,20 @@ bool TeenyUbloxConnect::pollGNSSSelectionInfo(uint16_t maxWait_) {
 }
 
 /********************************************************************/
-bool TeenyUbloxConnect::pollGNSSConfigInfo(uint16_t maxWait_) {
+bool TeenyUbloxConnect::pollGNSSConfig(uint16_t maxWait_) {
+  ubloxCFGGNSSInfoValid = false;
+  resetGNSSConfigState();
   if(ubloxModuleType == UBLOX_M8_MODULE) {
-    return pollGNSSConfigInfo_M8(maxWait_);
+    ubloxCFGGNSSInfoValid = pollGNSSConfig_M8(maxWait_);
   } else if(ubloxModuleType == UBLOX_M9_MODULE) {
-    return pollGNSSConfigInfo_M9(maxWait_);
+    ubloxCFGGNSSInfoValid = pollGNSSConfig_M9(maxWait_);
   } else if(ubloxModuleType == UBLOX_M10_MODULE) {
-    return pollGNSSConfigInfo_M10(maxWait_);
+    ubloxCFGGNSSInfoValid = pollGNSSConfig_M10(maxWait_);
   }
-  return false;
+  return ubloxCFGGNSSInfoValid;
 }
 /********************************************************************/
-bool TeenyUbloxConnect::pollGNSSConfigInfo_M8(uint16_t maxWait_) {
+bool TeenyUbloxConnect::pollGNSSConfig_M8(uint16_t maxWait_) {
   commandPacket.messageClass = UBX_CLASS_CFG;
   commandPacket.messageID = UBX_CFG_GNSS;
   commandPacket.payloadLength = 0;
@@ -350,7 +353,8 @@ bool TeenyUbloxConnect::pollGNSSConfigInfo_M8(uint16_t maxWait_) {
     ubloxCFGGNSSInfo.M8.numTrkChHw      = responsePacket.payload[1];
     ubloxCFGGNSSInfo.M8.numTrkChUse     = responsePacket.payload[2];
     ubloxCFGGNSSInfo.M8.numConfigBlocks = responsePacket.payload[3];
-    uint8_t gnssIdTypeMap[8]={'G','S','E','B','I','Q','R','N'};
+    char gnssIdTypeMap[8]={'G','S','E','B','I','Q','R','N'};
+    char gnssIdNameMap[8][8]={"GPS", "SBAS", "Galileo", "BeiDou", "IMES", "QZSS", "GLONASS", "NAVIC"};
     for(uint8_t i = 0; i < ubloxCFGGNSSInfo.M8.numConfigBlocks; i++) {
       ubloxCFGGNSSInfo.M8.configBlockList[i].gnssId = responsePacket.payload[4+(i*8)];
       if((ubloxCFGGNSSInfo.M8.configBlockList[i].gnssId < 0) ||
@@ -360,11 +364,41 @@ bool TeenyUbloxConnect::pollGNSSConfigInfo_M8(uint16_t maxWait_) {
       } else {
         ubloxCFGGNSSInfo.M8.configBlockList[i].gnssIdType =
           gnssIdTypeMap[ubloxCFGGNSSInfo.M8.configBlockList[i].gnssId];
+        strcpy(ubloxCFGGNSSInfo.M8.configBlockList[i].gnssIdName,
+               gnssIdNameMap[ubloxCFGGNSSInfo.M8.configBlockList[i].gnssId]);
       }
       ubloxCFGGNSSInfo.M8.configBlockList[i].resTrkCh = responsePacket.payload[4+(i*8)+1];
       ubloxCFGGNSSInfo.M8.configBlockList[i].maxTrkCh = responsePacket.payload[4+(i*8)+2];
       ubloxCFGGNSSInfo.M8.configBlockList[i].enable = responsePacket.payload[4+(i*8)+4];
       ubloxCFGGNSSInfo.M8.configBlockList[i].sigCfgMask = responsePacket.payload[4+(i*8)+6];
+      int8_t gnssId = responsePacket.payload[4+(i*8)];
+      if((gnssId >= 0) && (gnssId <= 7)) {
+        uint8_t gnssIdType = gnssIdTypeMap[gnssId];
+        int8_t  gnssEnable = responsePacket.payload[4+(i*8)+4];
+        switch(gnssIdType) {
+          case 'G':
+            ubloxCFGGNSSState.GPS = gnssEnable;
+            break;
+          case 'S':
+            ubloxCFGGNSSState.SBAS = gnssEnable;
+            break;
+          case 'E':
+            ubloxCFGGNSSState.Galileo = gnssEnable;
+            break;
+          case 'B':
+            ubloxCFGGNSSState.BeiDou = gnssEnable;
+            break;
+          case 'I':
+            ubloxCFGGNSSState.IMES = gnssEnable;
+            break;
+          case 'Q':
+            ubloxCFGGNSSState.QZSS = gnssEnable;
+            break;
+          case 'R':
+            ubloxCFGGNSSState.GLONASS = gnssEnable;
+            break;
+        }
+      }
     }
     return true;
   }
@@ -374,7 +408,7 @@ bool TeenyUbloxConnect::pollGNSSConfigInfo_M8(uint16_t maxWait_) {
   return false;
 }
 /********************************************************************/
-bool TeenyUbloxConnect::pollGNSSConfigInfo_M9(uint16_t maxWait_) {
+bool TeenyUbloxConnect::pollGNSSConfig_M9(uint16_t maxWait_) {
   commandPacket.messageClass = UBX_CLASS_CFG;
   commandPacket.messageID = UBX_CFG_VALGET;
   commandPacket.payloadLength = 52;
@@ -411,102 +445,120 @@ bool TeenyUbloxConnect::pollGNSSConfigInfo_M9(uint16_t maxWait_) {
         case UBLOX_CFG_SIGNAL_GPS_ENA:
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssId = 0;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdType = 'G';
+          strcpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdName, "GPS");
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].enable = gnssEnable;
           cfgSigNum = 0;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].numSigs = cfgSigNum;
           cfgBlkNum++;
           ubloxCFGGNSSInfo.M10.numConfigBlocks = cfgBlkNum;
+          ubloxCFGGNSSState.GPS = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_GPS_L1CA_ENA:
           strncpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].name, "L1CA", 5);
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].enable = gnssEnable;
           cfgSigNum++;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].numSigs = cfgSigNum;
+          ubloxCFGGNSSState.GPS_L1CA = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_SBAS_ENA:
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssId = 1;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdType = 'S';
+          strcpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdName, "SBAS");
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].enable = gnssEnable;
           cfgSigNum = 0;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].numSigs = cfgSigNum;
           cfgBlkNum++;
           ubloxCFGGNSSInfo.M10.numConfigBlocks = cfgBlkNum;
+          ubloxCFGGNSSState.SBAS = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_SBAS_L1CA_ENA:
           strncpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].name, "L1CA", 5);
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].enable = gnssEnable;
           cfgSigNum++;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].numSigs = cfgSigNum;
+          ubloxCFGGNSSState.SBAS_L1CA = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_GAL_ENA:
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssId = 2;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdType = 'E';
+          strcpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdName, "Galileo");
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].enable = gnssEnable;
           cfgSigNum = 0;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].numSigs = cfgSigNum;
           cfgBlkNum++;
           ubloxCFGGNSSInfo.M10.numConfigBlocks = cfgBlkNum;
+          ubloxCFGGNSSState.Galileo = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_GAL_E1_ENA:
           strncpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].name, "E1", 3);
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].enable = gnssEnable;
           cfgSigNum++;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].numSigs = cfgSigNum;
+          ubloxCFGGNSSState.Galileo_E1 = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_BDS_ENA:
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssId = 3;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdType = 'B';
+          strcpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdName, "BeiDou");
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].enable = gnssEnable;
           cfgSigNum = 0;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].numSigs = cfgSigNum;
           cfgBlkNum++;
           ubloxCFGGNSSInfo.M10.numConfigBlocks = cfgBlkNum;
+          ubloxCFGGNSSState.BeiDou = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_BDS_B1_ENA:
           strncpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].name, "B1", 3);
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].enable = gnssEnable;
           cfgSigNum++;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].numSigs = cfgSigNum;
+          ubloxCFGGNSSState.BeiDou_B1 = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_QZSS_ENA:
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssId = 5;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdType = 'Q';
+          strcpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdName, "QZSS");
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].enable = gnssEnable;
           cfgSigNum = 0;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].numSigs = cfgSigNum;
           cfgBlkNum++;
           ubloxCFGGNSSInfo.M10.numConfigBlocks = cfgBlkNum;
+          ubloxCFGGNSSState.QZSS = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_QZSS_L1CA_ENA:
           strncpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].name, "L1CA", 5);
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].enable = gnssEnable;
           cfgSigNum++;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].numSigs = cfgSigNum;
+          ubloxCFGGNSSState.QZSS_L1CA = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_GLO_ENA:
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssId = 6;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdType = 'R';
+          strcpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdName, "GLONASS");
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].enable = gnssEnable;
           cfgSigNum = 0;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].numSigs = cfgSigNum;
           cfgBlkNum++;
           ubloxCFGGNSSInfo.M10.numConfigBlocks = cfgBlkNum;
+          ubloxCFGGNSSState.GLONASS = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_GLO_L1_ENA:
           strncpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].name, "L1", 3);
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].enable = gnssEnable;
           cfgSigNum++;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].numSigs = cfgSigNum;
+          ubloxCFGGNSSState.GLONASS_L1 = gnssEnable;
           break;
       }
     }
     return true;
   }
-  ubloxCFGGNSSInfo.M10.numConfigBlocks = 24;
+  ubloxCFGGNSSInfo.M10.numConfigBlocks = 0;
   return false;
 }
 /********************************************************************/
-bool TeenyUbloxConnect::pollGNSSConfigInfo_M10(uint16_t maxWait_) {
+bool TeenyUbloxConnect::pollGNSSConfig_M10(uint16_t maxWait_) {
   commandPacket.messageClass = UBX_CLASS_CFG;
   commandPacket.messageID = UBX_CFG_VALGET;
   commandPacket.payloadLength = 60;
@@ -545,110 +597,130 @@ bool TeenyUbloxConnect::pollGNSSConfigInfo_M10(uint16_t maxWait_) {
         case UBLOX_CFG_SIGNAL_GPS_ENA:
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssId = 0;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdType = 'G';
+          strcpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdName, "GPS");
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].enable = gnssEnable;
           cfgSigNum = 0;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].numSigs = cfgSigNum;
           cfgBlkNum++;
           ubloxCFGGNSSInfo.M10.numConfigBlocks = cfgBlkNum;
+          ubloxCFGGNSSState.GPS = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_GPS_L1CA_ENA:
           strncpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].name, "L1CA", 5);
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].enable = gnssEnable;
           cfgSigNum++;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].numSigs = cfgSigNum;
+          ubloxCFGGNSSState.GPS_L1CA = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_SBAS_ENA:
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssId = 1;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdType = 'S';
+          strcpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdName, "SBAS");
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].enable = gnssEnable;
           cfgSigNum = 0;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].numSigs = cfgSigNum;
           cfgBlkNum++;
           ubloxCFGGNSSInfo.M10.numConfigBlocks = cfgBlkNum;
+          ubloxCFGGNSSState.SBAS = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_SBAS_L1CA_ENA:
           strncpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].name, "L1CA", 5);
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].enable = gnssEnable;
           cfgSigNum++;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].numSigs = cfgSigNum;
+          ubloxCFGGNSSState.SBAS_L1CA = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_GAL_ENA:
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssId = 2;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdType = 'E';
+          strcpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdName, "Galileo");
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].enable = gnssEnable;
           cfgSigNum = 0;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].numSigs = cfgSigNum;
           cfgBlkNum++;
           ubloxCFGGNSSInfo.M10.numConfigBlocks = cfgBlkNum;
+          ubloxCFGGNSSState.Galileo = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_GAL_E1_ENA:
           strncpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].name, "E1", 3);
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].enable = gnssEnable;
           cfgSigNum++;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].numSigs = cfgSigNum;
+          ubloxCFGGNSSState.Galileo_E1 = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_BDS_ENA:
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssId = 3;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdType = 'B';
+          strcpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdName, "BeiDou");
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].enable = gnssEnable;
           cfgSigNum = 0;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].numSigs = cfgSigNum;
           cfgBlkNum++;
           ubloxCFGGNSSInfo.M10.numConfigBlocks = cfgBlkNum;
+          ubloxCFGGNSSState.BeiDou = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_BDS_B1_ENA:
           strncpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].name, "B1", 3);
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].enable = gnssEnable;
           cfgSigNum++;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].numSigs = cfgSigNum;
+          ubloxCFGGNSSState.BeiDou_B1 = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_BDS_B1C_ENA:
           strncpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].name, "B1C", 4);
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].enable = gnssEnable;
           cfgSigNum++;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].numSigs = cfgSigNum;
+          ubloxCFGGNSSState.BeiDou_B1C = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_QZSS_ENA:
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssId = 5;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdType = 'Q';
+          strcpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdName, "QZSS");
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].enable = gnssEnable;
           cfgSigNum = 0;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].numSigs = cfgSigNum;
           cfgBlkNum++;
           ubloxCFGGNSSInfo.M10.numConfigBlocks = cfgBlkNum;
+          ubloxCFGGNSSState.QZSS = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_QZSS_L1CA_ENA:
           strncpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].name, "L1CA", 5);
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].enable = gnssEnable;
           cfgSigNum++;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].numSigs = cfgSigNum;
+          ubloxCFGGNSSState.QZSS_L1CA = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_QZSS_L1S_ENA:
           strncpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].name, "L1S", 4);
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].enable = gnssEnable;
           cfgSigNum++;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].numSigs = cfgSigNum;
+          ubloxCFGGNSSState.QZSS_L1S = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_GLO_ENA:
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssId = 6;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdType = 'R';
+          strcpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].gnssIdName, "GLONASS");
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].enable = gnssEnable;
           cfgSigNum = 0;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum].numSigs = cfgSigNum;
           cfgBlkNum++;
           ubloxCFGGNSSInfo.M10.numConfigBlocks = cfgBlkNum;
+          ubloxCFGGNSSState.GLONASS = gnssEnable;
           break;
         case UBLOX_CFG_SIGNAL_GLO_L1_ENA:
           strncpy(ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].name, "L1", 3);
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].signalList[cfgSigNum].enable = gnssEnable;
           cfgSigNum++;
           ubloxCFGGNSSInfo.M10.configBlockList[cfgBlkNum-1].numSigs = cfgSigNum;
+          ubloxCFGGNSSState.GLONASS_L1 = gnssEnable;
           break;
       }
     }
     return true;
   }
-  ubloxCFGGNSSInfo.M10.numConfigBlocks = 24;
+  ubloxCFGGNSSInfo.M10.numConfigBlocks = 0;
   return false;
 }
 
@@ -744,7 +816,7 @@ bool TeenyUbloxConnect::setGNSSSignalConfig(uint8_t gnssId, const char* signalNa
   if(ubloxModuleType == UBLOX_M8_MODULE) {
     return setGNSSSignalConfig_M8(gnssId, signalName, enable, maxWait_);
   } else if(ubloxModuleType == UBLOX_M9_MODULE) {
-    return setGNSSSignalConfig_M10(gnssId, signalName, enable, maxWait_);
+    return setGNSSSignalConfig_M9(gnssId, signalName, enable, maxWait_);
   } else if(ubloxModuleType == UBLOX_M10_MODULE) {
     return setGNSSSignalConfig_M10(gnssId, signalName, enable, maxWait_);
   }
@@ -753,6 +825,76 @@ bool TeenyUbloxConnect::setGNSSSignalConfig(uint8_t gnssId, const char* signalNa
 /********************************************************************/
 bool TeenyUbloxConnect::setGNSSSignalConfig_M8(uint8_t gnssId, const char* signalName, bool enable, uint16_t maxWait_) {
   // Only used for M10 modules
+  return false;
+}
+/********************************************************************/
+bool TeenyUbloxConnect::setGNSSSignalConfig_M9(uint8_t gnssId, const char* signalName, bool enable, uint16_t maxWait_) {
+  commandPacket.messageClass = UBX_CLASS_CFG;
+  commandPacket.messageID = UBX_CFG_VALSET;
+  commandPacket.payloadLength = 9;
+  commandPacket.payload[0] = 0;
+  commandPacket.payload[1] = VALSET_LAYER_ALL;
+  commandPacket.payload[2] = 0;
+  commandPacket.payload[3] = 0;
+  uint32_t gnssKey;
+  switch(gnssId) {
+    case 0:
+      if(strcmp(signalName, "L1CA") == 0) {
+        gnssKey =  UBLOX_CFG_SIGNAL_GPS_L1CA_ENA;
+        break;
+      } else {
+        return false;
+      }
+    case 1:
+      if(strcmp(signalName, "L1CA") == 0) {
+        gnssKey = UBLOX_CFG_SIGNAL_SBAS_L1CA_ENA;
+        break;
+      } else {
+        return false;
+      }
+    case 2:
+      if(strcmp(signalName, "E1") == 0) {
+        gnssKey = UBLOX_CFG_SIGNAL_GAL_E1_ENA;
+        break;
+      } else {
+        return false;
+      }
+    case 3:
+      if(strcmp(signalName, "B1") == 0) {
+        gnssKey = UBLOX_CFG_SIGNAL_BDS_B1_ENA;
+        break;
+      } else {
+        return false;
+      }
+    case 5:
+      if(strcmp(signalName, "L1CA") == 0) {
+        gnssKey = UBLOX_CFG_SIGNAL_QZSS_L1CA_ENA;
+        break;
+      } else {
+        return false;
+      }
+    case 6:
+      if(strcmp(signalName, "L1") == 0) {
+        gnssKey = UBLOX_CFG_SIGNAL_GLO_L1_ENA;
+        break;
+      } else {
+        return false;
+      }
+    default: return false;
+  }
+  for(uint8_t i = 0; i < 4; i++)
+    commandPacket.payload[4 + i] = gnssKey >> (8 * i);
+  commandPacket.payload[8] = enable;
+  commandPacket.validPacket = true;
+  if(sendCommandPacket(false, true, maxWait_)) {
+    //Note that changes to any items within CFG-SIGNAL will
+    //trigger a reset to the GNSS subsystem. The reset takes
+    //some time, so wait ﬁrst for the acknowledgement from the
+    //receiver and then 0.5 seconds before sending the next command.
+    delay(500);
+    return true;
+  }
+  delay(500);
   return false;
 }
 /********************************************************************/
@@ -819,6 +961,255 @@ bool TeenyUbloxConnect::setGNSSSignalConfig_M10(uint8_t gnssId, const char* sign
   for(uint8_t i = 0; i < 4; i++)
     commandPacket.payload[4 + i] = gnssKey >> (8 * i);
   commandPacket.payload[8] = enable;
+  commandPacket.validPacket = true;
+  if(sendCommandPacket(false, true, maxWait_)) {
+    //Note that changes to any items within CFG-SIGNAL will
+    //trigger a reset to the GNSS subsystem. The reset takes
+    //some time, so wait ﬁrst for the acknowledgement from the
+    //receiver and then 0.5 seconds before sending the next command.
+    delay(500);
+    return true;
+  }
+  delay(500);
+  return false;
+}
+
+/********************************************************************/
+bool TeenyUbloxConnect::setGNSSConfigState(ubloxCFGGNSSState_t gnssConfigState, uint16_t maxWait_) {
+  if(ubloxModuleType == UBLOX_M8_MODULE) {
+    return setGNSSConfigState_M8(gnssConfigState, maxWait_);
+  } else if(ubloxModuleType == UBLOX_M9_MODULE) {
+    return setGNSSConfigState_M9(gnssConfigState, maxWait_);
+  } else if(ubloxModuleType == UBLOX_M10_MODULE) {
+    return setGNSSConfigState_M10(gnssConfigState, maxWait_);
+  }
+  return false;
+}
+/********************************************************************/
+bool TeenyUbloxConnect::setGNSSConfigState_M8(ubloxCFGGNSSState_t gnssConfigState, uint16_t maxWait_) {
+  commandPacket.messageClass = UBX_CLASS_CFG;
+  commandPacket.messageID = UBX_CFG_GNSS;
+  commandPacket.payloadLength = 0;
+  commandPacket.validPacket = true;
+  if(sendCommandPacket(true, true, maxWait_)) {
+    commandPacket = responsePacket;
+    uint8_t numConfigBlocks = responsePacket.payload[3];
+    int8_t _enable = false;
+    for(uint8_t i = 0; i < numConfigBlocks; i++) {
+      switch(commandPacket.payload[4+(i*8)]) {
+        case 0:
+          _enable = gnssConfigState.GPS == 1;
+          break;
+        case 1:
+          _enable = gnssConfigState.SBAS == 1;
+          break;
+        case 2:
+          _enable = gnssConfigState.Galileo == 1;
+          break;
+        case 3:
+          _enable = gnssConfigState.BeiDou == 1;
+          break;
+        case 4:
+          _enable = gnssConfigState.IMES == 1;
+          break;
+        case 5:
+          _enable = gnssConfigState.QZSS == 1;
+          break;
+        case 6:
+          _enable = gnssConfigState.GLONASS == 1;
+          break;
+        default:
+          _enable = -1;
+          break;
+      }
+      if(_enable > 0) {
+        commandPacket.payload[4+(i*8) + 4] |= 0x01;
+      } else if(_enable == 0) {
+        commandPacket.payload[4+(i*8) + 4] &= 0xFE;
+      }
+    }
+    commandPacket.validPacket = true;
+    if(sendCommandPacket(false, true, maxWait_)) {
+      //Applying the GNSS system configuration takes some time.
+      //After issuing UBX-CFG-GNSS, wait first for the acknowledgement
+      //from the receiver and then 0.5 seconds before sending the next command.
+      delay(500);
+      //If Galileo is enabled, UBX-CFG-GNSS must be followed by
+      //UBX-CFG-CFG to save current configuration to BBR and then
+      //by UBX-CFG-RST with resetMode set to Hardware reset.
+      if(saveConfiguration(0x00000010)) {
+        hardwareReset();
+        delay(100); // recovery time for possible gnss module baud rate change;
+        return true;
+      }
+    }
+  }
+  return false;
+}
+/********************************************************************/
+bool TeenyUbloxConnect::setGNSSConfigState_M9(ubloxCFGGNSSState_t gnssConfigState, uint16_t maxWait_) {
+  commandPacket.messageClass = UBX_CLASS_CFG;
+  commandPacket.messageID = UBX_CFG_VALSET;
+  commandPacket.payloadLength = 64;
+  commandPacket.payload[0] = 0;
+  commandPacket.payload[1] = VALSET_LAYER_ALL;
+  commandPacket.payload[2] = 0;
+  commandPacket.payload[3] = 0;
+  uint32_t gnssKey;
+  bool enable;
+  uint8_t kvIndex = 4;
+  gnssKey = UBLOX_CFG_SIGNAL_GPS_ENA;
+  enable = gnssConfigState.GPS == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_GPS_L1CA_ENA;
+  enable = gnssConfigState.GPS_L1CA == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_SBAS_ENA;
+  enable = gnssConfigState.SBAS == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_SBAS_L1CA_ENA;
+  enable = gnssConfigState.SBAS_L1CA == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_GAL_ENA;
+  enable = gnssConfigState.Galileo == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_GAL_E1_ENA;
+  enable = gnssConfigState.Galileo_E1 == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_BDS_ENA;
+  enable = gnssConfigState.BeiDou == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_BDS_B1_ENA;
+  enable = gnssConfigState.BeiDou_B1 == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_QZSS_ENA;
+  enable = gnssConfigState.QZSS == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_QZSS_L1CA_ENA;
+  enable = gnssConfigState.QZSS_L1CA == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_GLO_ENA;
+  enable = gnssConfigState.GLONASS == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_GLO_L1_ENA;
+  enable = gnssConfigState.GLONASS_L1 == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  commandPacket.validPacket = true;
+  if(sendCommandPacket(false, true, maxWait_)) {
+    //Note that changes to any items within CFG-SIGNAL will
+    //trigger a reset to the GNSS subsystem. The reset takes
+    //some time, so wait ﬁrst for the acknowledgement from the
+    //receiver and then 0.5 seconds before sending the next command.
+    delay(500);
+    return true;
+  }
+  delay(500);
+  return false;
+}
+/********************************************************************/
+bool TeenyUbloxConnect::setGNSSConfigState_M10(ubloxCFGGNSSState_t gnssConfigState, uint16_t maxWait_) {
+  commandPacket.messageClass = UBX_CLASS_CFG;
+  commandPacket.messageID = UBX_CFG_VALSET;
+  commandPacket.payloadLength = 74;
+  commandPacket.payload[0] = 0;
+  commandPacket.payload[1] = VALSET_LAYER_ALL;
+  commandPacket.payload[2] = 0;
+  commandPacket.payload[3] = 0;
+  uint32_t gnssKey;
+  bool enable;
+  uint8_t kvIndex = 4;
+  gnssKey = UBLOX_CFG_SIGNAL_GPS_ENA;
+  enable = gnssConfigState.GPS == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_GPS_L1CA_ENA;
+  enable = gnssConfigState.GPS_L1CA == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_SBAS_ENA;
+  enable = gnssConfigState.SBAS == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_SBAS_L1CA_ENA;
+  enable = gnssConfigState.SBAS_L1CA == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_GAL_ENA;
+  enable = gnssConfigState.Galileo == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_GAL_E1_ENA;
+  enable = gnssConfigState.Galileo_E1 == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_BDS_ENA;
+  enable = gnssConfigState.BeiDou == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_BDS_B1_ENA;
+  enable = gnssConfigState.BeiDou_B1 == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_BDS_B1C_ENA;
+  enable = gnssConfigState.BeiDou_B1C == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_QZSS_ENA;
+  enable = gnssConfigState.QZSS == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_QZSS_L1CA_ENA;
+  enable = gnssConfigState.QZSS_L1CA == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_QZSS_L1S_ENA;
+  enable = gnssConfigState.QZSS_L1S == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_GLO_ENA;
+  enable = gnssConfigState.GLONASS == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
+  kvIndex += 5;
+  gnssKey = UBLOX_CFG_SIGNAL_GLO_L1_ENA;
+  enable = gnssConfigState.GLONASS_L1 == 1;
+  for(uint8_t i = 0; i < 4; i++) commandPacket.payload[kvIndex + i] = gnssKey >> (8 * i);
+  commandPacket.payload[kvIndex + 4] = enable;
   commandPacket.validPacket = true;
   if(sendCommandPacket(false, true, maxWait_)) {
     //Note that changes to any items within CFG-SIGNAL will
@@ -1424,6 +1815,27 @@ ubloxMONGNSSInfo_t TeenyUbloxConnect::getGNSSSelectionInfo() {
 ubloxCFGGNSSInfo_t TeenyUbloxConnect::getGNSSConfigInfo() {
   return ubloxCFGGNSSInfo;
 }
+void TeenyUbloxConnect::resetGNSSConfigState() {
+  // GNSS State - Unknown=-1, Disabled=0, Enabled=1
+  ubloxCFGGNSSState.GPS        = -1;
+  ubloxCFGGNSSState.GPS_L1CA   = -1;
+  ubloxCFGGNSSState.SBAS       = -1;
+  ubloxCFGGNSSState.SBAS_L1CA  = -1;
+  ubloxCFGGNSSState.Galileo    = -1;
+  ubloxCFGGNSSState.Galileo_E1 = -1;
+  ubloxCFGGNSSState.BeiDou     = -1;
+  ubloxCFGGNSSState.BeiDou_B1  = -1;
+  ubloxCFGGNSSState.BeiDou_B1C = -1;
+  ubloxCFGGNSSState.IMES       = -1;
+  ubloxCFGGNSSState.QZSS       = -1;
+  ubloxCFGGNSSState.QZSS_L1CA  = -1;
+  ubloxCFGGNSSState.QZSS_L1S   = -1;
+  ubloxCFGGNSSState.GLONASS    = -1;
+  ubloxCFGGNSSState.GLONASS_L1 = -1;
+}
+ubloxCFGGNSSState_t TeenyUbloxConnect::getGNSSConfigState() {
+  return ubloxCFGGNSSState;
+}
 
 
 /********************************************************************/
@@ -1786,7 +2198,7 @@ void TeenyUbloxConnect::setNAVSATPacketInfo() {
     }
   }
   // Find and sort up to UBX_MAXNAVSATSATELLITES
-  uint8_t gnssIdTypeMap[8]={'G','S','E','B','I','Q','R','N'};
+  char gnssIdTypeMap[8]={'G','S','E','B','I','Q','R','N'};
   for(uint8_t i=0; i<UBX_MAXNAVSATSATELLITES; i++) {
     bool foundSat = false;
     uint8_t foundSatIndex;

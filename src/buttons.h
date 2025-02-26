@@ -4,25 +4,17 @@
 
 /********************************************************************/
 // Buttons
-#define SHORT_PRESS_DURATION 10
+#define SHORT_PRESS_DURATION 30
 #define LONG_PRESS_DURATION  350
 struct ButtonState {
-  bool currentlyPressed = false;
-  bool shortPress = false;
-  bool longPress = false;
+  bool wasPressed = false;
+  bool singleClickEvent = false;
+  bool longClickEvent = false;
+  bool doubleClickEvent = false;
 };
-ButtonState buttonA_state;
-ButtonState buttonB_state;
-ButtonState buttonC_state;
-volatile bool buttonA_singleClickEvent;
-volatile bool buttonA_longClickEvent;
-volatile bool buttonA_doubleClickEvent;
-volatile bool buttonB_singleClickEvent;
-volatile bool buttonB_longClickEvent;
-volatile bool buttonB_doubleClickEvent;
-volatile bool buttonC_singleClickEvent;
-volatile bool buttonC_longClickEvent;
-volatile bool buttonC_doubleClickEvent;
+volatile ButtonState buttonA_state;
+volatile ButtonState buttonB_state;
+volatile ButtonState buttonC_state;
 volatile bool insideButtonsClick;
 #ifdef DEBUG_BUTTON_PRESSES
 volatile int16_t clickX;
@@ -33,26 +25,26 @@ volatile int16_t clickY;
 void buttonA_singleClick() {
   menuInputTime = millis();
   if(!menuDisplaySleepMode) {
-    menu.registerKeyPress(TEENYMENU_KEY_DOWN);
 #ifdef DEBUG_BUTTON_PRESSES
     static uint16_t count=0;
     char _tempStr[22];
-    sprintf(_tempStr, "BtnA.SC.%d %d:%d", ++count, clickX, clickY);
+    sprintf(_tempStr, "A.SC.%d %d:%d", ++count, clickX, clickY);
     msg_update(_tempStr);
 #endif
+    menu.registerKeyPress(TEENYMENU_KEY_DOWN);
   }
   displayRefresh = true;
 }
 void buttonA_longClick() {
   menuInputTime = millis();
   if(!menuDisplaySleepMode) {
-    menu.registerKeyPress(TEENYMENU_KEY_DOWN);
 #ifdef DEBUG_BUTTON_PRESSES
     static uint16_t count=0;
     char _tempStr[22];
-    sprintf(_tempStr, "BtnA.LC.%d %d:%d", ++count, clickX, clickY);
+    sprintf(_tempStr, "A.LC.%d %d:%d", ++count, clickX, clickY);
     msg_update(_tempStr);
 #endif
+    menu.registerKeyPress(TEENYMENU_KEY_DOWN);
   }
   displayRefresh = true;
 }
@@ -62,7 +54,7 @@ void buttonA_doubleClick() {
 #ifdef DEBUG_BUTTON_PRESSES
     static uint16_t count=0;
     char _tempStr[22];
-    sprintf(_tempStr, "BtnA.DC.%d %d:%d", ++count, clickX, clickY);
+    sprintf(_tempStr, "A.DC.%d %d:%d", ++count, clickX, clickY);
     msg_update(_tempStr);
 #endif
   }
@@ -71,65 +63,65 @@ void buttonA_doubleClick() {
 void buttonB_singleClick() {
   menuInputTime = millis();
   if(!menuDisplaySleepMode) {
-    menu.registerKeyPress(TEENYMENU_KEY_RIGHT);
 #ifdef DEBUG_BUTTON_PRESSES
     static uint16_t count=0;
     char _tempStr[22];
-    sprintf(_tempStr, "BtnB.SC.%d %d:%d", ++count, clickX, clickY);
+    sprintf(_tempStr, "B.SC.%d %d:%d", ++count, clickX, clickY);
     msg_update(_tempStr);
 #endif
+    menu.registerKeyPress(TEENYMENU_KEY_RIGHT);
   }
   displayRefresh = true;
 }
 void buttonB_longClick() {
   menuInputTime = millis();
   if(!menuDisplaySleepMode) {
-    menu.registerKeyPress(TEENYMENU_KEY_LEFT);
 #ifdef DEBUG_BUTTON_PRESSES
     static uint16_t count=0;
     char _tempStr[22];
-    sprintf(_tempStr, "BtnB.LC.%d %d:%d", ++count, clickX, clickY);
+    sprintf(_tempStr, "B.LC.%d %d:%d", ++count, clickX, clickY);
     msg_update(_tempStr);
 #endif
+    menu.registerKeyPress(TEENYMENU_KEY_LEFT);
   }
   displayRefresh = true;
 }
 void buttonB_doubleClick() {
   menuInputTime = millis();
   if(!menuDisplaySleepMode) {
-    menu.registerKeyPress(TEENYMENU_KEY_LEFT);
 #ifdef DEBUG_BUTTON_PRESSES
     static uint16_t count=0;
     char _tempStr[22];
-    sprintf(_tempStr, "BtnB.DC.%d %d:%d", ++count, clickX, clickY);
+    sprintf(_tempStr, "B.DC.%d %d:%d", ++count, clickX, clickY);
     msg_update(_tempStr);
 #endif
+    menu.registerKeyPress(TEENYMENU_KEY_LEFT);
   }
   displayRefresh = true;
 }
 void buttonC_singleClick() {
   menuInputTime = millis();
   if(!menuDisplaySleepMode) {
-    menu.registerKeyPress(TEENYMENU_KEY_UP);
 #ifdef DEBUG_BUTTON_PRESSES
     static uint16_t count=0;
     char _tempStr[22];
-    sprintf(_tempStr, "BtnC.SC.%d %d:%d", ++count, clickX, clickY);
+    sprintf(_tempStr, "C.SC.%d %d:%d", ++count, clickX, clickY);
     msg_update(_tempStr);
 #endif
+    menu.registerKeyPress(TEENYMENU_KEY_UP);
   }
   displayRefresh = true;
 }
 void buttonC_longClick() {
   menuInputTime = millis();
   if(!menuDisplaySleepMode) {
-    menu.registerKeyPress(TEENYMENU_KEY_UP);
 #ifdef DEBUG_BUTTON_PRESSES
     static uint16_t count=0;
     char _tempStr[22];
-    sprintf(_tempStr, "BtnC.LC.%d %d:%d", ++count, clickX, clickY);
+    sprintf(_tempStr, "C.LC.%d %d:%d", ++count, clickX, clickY);
     msg_update(_tempStr);
 #endif
+    menu.registerKeyPress(TEENYMENU_KEY_UP);
   }
   displayRefresh = true;
 }
@@ -139,7 +131,7 @@ void buttonC_doubleClick() {
 #ifdef DEBUG_BUTTON_PRESSES
     static uint16_t count=0;
     char _tempStr[22];
-    sprintf(_tempStr, "BtnC.DC.%d %d:%d", ++count, clickX, clickY);
+    sprintf(_tempStr, "C.DC.%d %d:%d", ++count, clickX, clickY);
     msg_update(_tempStr);
 #endif
   }
@@ -148,72 +140,102 @@ void buttonC_doubleClick() {
 
 /********************************************************************/
 void buttons_tick() {
-  if(insideButtonsClick) return;
   M5.update();
+  if(insideButtonsClick) return;
 #ifdef DEBUG_BUTTON_PRESSES
-  if(M5.Touch.ispressed()) {
-    TouchPoint_t touchPt = M5.Touch.getPressPoint();
-    if(touchPt.x >=0) {
-      clickX = touchPt.x;
-      clickY = touchPt.y;
+  if(M5.Touch.getCount() > 0) {
+    m5::touch_detail_t touchDetail = M5.Touch.getDetail(1);
+    if(touchDetail.x >=0) {
+      clickX = touchDetail.x;
+      clickY = touchDetail.y;
     }
   }
 #endif
-  buttonA_state.longPress        = buttonA_state.currentlyPressed && M5.BtnA.wasReleasefor(LONG_PRESS_DURATION);
-  buttonA_state.shortPress       = buttonA_state.currentlyPressed && M5.BtnA.wasReleasefor(SHORT_PRESS_DURATION) && !buttonA_state.longPress;
-  buttonA_state.currentlyPressed = M5.BtnA.pressedFor(SHORT_PRESS_DURATION);
-  if(buttonA_state.shortPress) buttonA_singleClickEvent=true;
-  if(buttonA_state.longPress)  buttonA_longClickEvent=true;
-  buttonB_state.longPress        = buttonB_state.currentlyPressed && M5.BtnB.wasReleasefor(LONG_PRESS_DURATION);
-  buttonB_state.shortPress       = buttonB_state.currentlyPressed && M5.BtnB.wasReleasefor(SHORT_PRESS_DURATION) && !buttonB_state.longPress;
-  buttonB_state.currentlyPressed = M5.BtnB.pressedFor(SHORT_PRESS_DURATION);
-  if(buttonB_state.shortPress) buttonB_singleClickEvent=true;
-  if(buttonB_state.longPress)  buttonB_longClickEvent=true;
-  buttonC_state.longPress        = buttonC_state.currentlyPressed && M5.BtnC.wasReleasefor(LONG_PRESS_DURATION);
-  buttonC_state.shortPress       = buttonC_state.currentlyPressed && M5.BtnC.wasReleasefor(SHORT_PRESS_DURATION) && !buttonC_state.longPress;
-  buttonC_state.currentlyPressed = M5.BtnC.pressedFor(SHORT_PRESS_DURATION);
-  if(buttonC_state.shortPress) buttonC_singleClickEvent=true;
-  if(buttonC_state.longPress)  buttonC_longClickEvent=true;
+  if(buttonA_state.wasPressed &&
+     !(buttonA_state.singleClickEvent || buttonA_state.longClickEvent)) {
+    if(M5.BtnA.wasReleaseFor(LONG_PRESS_DURATION)) {
+      buttonA_state.longClickEvent = true;
+    } else if(M5.BtnA.wasReleaseFor(SHORT_PRESS_DURATION)) {
+      buttonA_state.singleClickEvent = true;
+    }
+  }
+  buttonA_state.wasPressed = M5.BtnA.pressedFor(SHORT_PRESS_DURATION);
+  if(buttonB_state.wasPressed &&
+     !(buttonB_state.singleClickEvent || buttonB_state.longClickEvent)) {
+    if(M5.BtnB.wasReleaseFor(LONG_PRESS_DURATION)) {
+      buttonB_state.longClickEvent = true;
+    } else if(M5.BtnB.wasReleaseFor(SHORT_PRESS_DURATION)) {
+      buttonB_state.singleClickEvent = true;
+    }
+  }
+  buttonB_state.wasPressed = M5.BtnB.pressedFor(SHORT_PRESS_DURATION);
+  if(buttonC_state.wasPressed &&
+     !(buttonC_state.singleClickEvent || buttonC_state.longClickEvent)) {
+    if(M5.BtnC.wasReleaseFor(LONG_PRESS_DURATION)) {
+      buttonC_state.longClickEvent = true;
+    } else if(M5.BtnC.wasReleaseFor(SHORT_PRESS_DURATION)) {
+      buttonC_state.singleClickEvent = true;
+    }
+  }
+  buttonC_state.wasPressed = M5.BtnC.pressedFor(SHORT_PRESS_DURATION);
 }
 
 /********************************************************************/
 void buttons_click() {
   insideButtonsClick = true;
-  if(buttonA_singleClickEvent) {
+  if(buttonA_state.singleClickEvent) {
     buttonA_singleClick();
-    buttonA_singleClickEvent = false;
+    buttonA_state.singleClickEvent = false;
+    insideButtonsClick = false;
+    return;
   }
-  if(buttonA_longClickEvent) {
+  if(buttonA_state.longClickEvent) {
     buttonA_longClick();
-    buttonA_longClickEvent = false;
+    buttonA_state.longClickEvent = false;
+    insideButtonsClick = false;
+    return;
   }
-  if(buttonA_doubleClickEvent) {
+  if(buttonA_state.doubleClickEvent) {
     buttonA_doubleClick();
-    buttonA_doubleClickEvent = false;
+    buttonA_state.doubleClickEvent = false;
+    insideButtonsClick = false;
+    return;
   }
-  if(buttonB_singleClickEvent) {
+  if(buttonB_state.singleClickEvent) {
     buttonB_singleClick();
-    buttonB_singleClickEvent = false;
+    buttonB_state.singleClickEvent = false;
+    insideButtonsClick = false;
+    return;
   }
-  if(buttonB_longClickEvent) {
+  if(buttonB_state.longClickEvent) {
     buttonB_longClick();
-    buttonB_longClickEvent = false;
+    buttonB_state.longClickEvent = false;
+    insideButtonsClick = false;
+    return;
   }
-  if(buttonB_doubleClickEvent) {
+  if(buttonB_state.doubleClickEvent) {
     buttonB_doubleClick();
-    buttonB_doubleClickEvent = false;
+    buttonB_state.doubleClickEvent = false;
+    insideButtonsClick = false;
+    return;
   }
-  if(buttonC_singleClickEvent) {
+  if(buttonC_state.singleClickEvent) {
     buttonC_singleClick();
-    buttonC_singleClickEvent = false;
+    buttonC_state.singleClickEvent = false;
+    insideButtonsClick = false;
+    return;
   }
-  if(buttonC_longClickEvent) {
+  if(buttonC_state.longClickEvent) {
     buttonC_longClick();
-    buttonC_longClickEvent = false;
+    buttonC_state.longClickEvent = false;
+    insideButtonsClick = false;
+    return;
   }
-  if(buttonC_doubleClickEvent) {
+  if(buttonC_state.doubleClickEvent) {
     buttonC_doubleClick();
-    buttonC_doubleClickEvent = false;
+    buttonC_state.doubleClickEvent = false;
+    insideButtonsClick = false;
+    return;
   }
   insideButtonsClick = false; 
 }

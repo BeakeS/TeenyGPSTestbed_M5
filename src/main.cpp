@@ -62,6 +62,14 @@ HardwareSerial *emulatorSerial;
 #include "constellation.h"
 
 /********************************************************************/
+// Satellite Calibration
+#include "calibration.h"
+
+/********************************************************************/
+// GNSS Utilites
+#include "gnss.h"
+
+/********************************************************************/
 // Battery
 #include "battery.h"
 
@@ -337,6 +345,22 @@ void loop() {
         displayRefresh = true;
       }
       break;
+    case DM_GPSSCAL:
+      if(gps.getNAVPVT()) {
+        if((!rtc.isValid()) && gps.isDateValid() && gps.isTimeValid()) {
+          rtc.setRTCTime(gps.getYear(), gps.getMonth(), gps.getDay(),
+                         gps.getHour(), gps.getMinute(), gps.getSecond());
+        }
+        displayRefresh = true;
+      } else if(gps.getNAVSTATUS()) {
+        displayRefresh = true;
+      } else if(gps.getNAVSAT()) {
+        displayRefresh = true;
+      }
+      satCalibration_tick();
+      break;
+    case DM_GPSSCFG:
+      break;
     case DM_GPSEMU_M8:
     case DM_GPSEMU_M10:
       if(emulatorEnabled) {
@@ -406,6 +430,7 @@ void loop() {
   }
 
   ////CHECKBUTTONACTIVITY////
+  buttons_tick(); ////NOT ISR SAFE - Moved from itimer0_handler() to loop()////
   buttons_click();
   ////CHECKBUTTONACTIVITY////
 

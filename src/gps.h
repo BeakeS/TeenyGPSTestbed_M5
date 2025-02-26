@@ -38,34 +38,34 @@ uint16_t sdcard_closeGNSSConfigFile();
 /********************************************************************/
 bool gps_writeGNSSConfigFile() {
   if(!sdcard_openGNSSConfigFile()) return false;
-  char _dispStr[80];
+  char _tempStr[80];
   uint8_t ubloxModuleType = gps.getUbloxModuleType();
-  gps.pollGNSSConfigInfo();
+  gps.pollGNSSConfig();
   ubloxCFGGNSSInfo_t ubloxCFGGNSSInfo = gps.getGNSSConfigInfo();
-  sprintf(_dispStr, "UbloxModule=M%d\n", ubloxModuleType);
-  sdcard_writeGNSSConfigFile((uint8_t*)_dispStr, strlen(_dispStr));
+  sprintf(_tempStr, "UbloxModule=M%d\n", ubloxModuleType);
+  sdcard_writeGNSSConfigFile((uint8_t*)_tempStr, strlen(_tempStr));
   if(ubloxModuleType == UBLOX_M8_MODULE) {
-    sprintf(_dispStr, "numTrkChHw=%02d\n", ubloxCFGGNSSInfo.M8.numTrkChHw);
-    sdcard_writeGNSSConfigFile((uint8_t*)_dispStr, strlen(_dispStr));
-    sprintf(_dispStr, "numTrkChUse=%02d\n", ubloxCFGGNSSInfo.M8.numTrkChUse);
-    sdcard_writeGNSSConfigFile((uint8_t*)_dispStr, strlen(_dispStr));
-    sprintf(_dispStr, "numConfigBlocks=%02d\n", ubloxCFGGNSSInfo.M8.numConfigBlocks);
-    sdcard_writeGNSSConfigFile((uint8_t*)_dispStr, strlen(_dispStr));
+    sprintf(_tempStr, "numTrkChHw=%02d\n", ubloxCFGGNSSInfo.M8.numTrkChHw);
+    sdcard_writeGNSSConfigFile((uint8_t*)_tempStr, strlen(_tempStr));
+    sprintf(_tempStr, "numTrkChUse=%02d\n", ubloxCFGGNSSInfo.M8.numTrkChUse);
+    sdcard_writeGNSSConfigFile((uint8_t*)_tempStr, strlen(_tempStr));
+    sprintf(_tempStr, "numConfigBlocks=%02d\n", ubloxCFGGNSSInfo.M8.numConfigBlocks);
+    sdcard_writeGNSSConfigFile((uint8_t*)_tempStr, strlen(_tempStr));
     for(uint8_t i=0; i<min(ubloxCFGGNSSInfo.M8.numConfigBlocks, 7); i++) {
-      sprintf(_dispStr, "GNSS=%c Enabled=%c Channels=%02d/%02d Mask=%02X\n",
-              ubloxCFGGNSSInfo.M8.configBlockList[i].gnssIdType,
+      sprintf(_tempStr, "GNSS=%s Enabled=%c Channels=%02d/%02d Mask=%02X\n",
+              ubloxCFGGNSSInfo.M8.configBlockList[i].gnssIdName,
               (ubloxCFGGNSSInfo.M8.configBlockList[i].enable ? 'T' : 'F'),
               ubloxCFGGNSSInfo.M8.configBlockList[i].resTrkCh,
               ubloxCFGGNSSInfo.M8.configBlockList[i].maxTrkCh,
               ubloxCFGGNSSInfo.M8.configBlockList[i].sigCfgMask);
-      sdcard_writeGNSSConfigFile((uint8_t*)_dispStr, strlen(_dispStr));
+      sdcard_writeGNSSConfigFile((uint8_t*)_tempStr, strlen(_tempStr));
     }
   } else if((ubloxModuleType == UBLOX_M9_MODULE) || (ubloxModuleType == UBLOX_M10_MODULE)) {
-    sprintf(_dispStr, "numConfigBlocks=%02d\n", ubloxCFGGNSSInfo.M10.numConfigBlocks);
-    sdcard_writeGNSSConfigFile((uint8_t*)_dispStr, strlen(_dispStr));
+    sprintf(_tempStr, "numConfigBlocks=%02d\n", ubloxCFGGNSSInfo.M10.numConfigBlocks);
+    sdcard_writeGNSSConfigFile((uint8_t*)_tempStr, strlen(_tempStr));
     for(uint8_t i=0; i<min(ubloxCFGGNSSInfo.M10.numConfigBlocks, 6); i++) {
-      sprintf(_dispStr, "GNSS:%c=%c Sats:%s%s%c%s%s%s%c\n",
-              ubloxCFGGNSSInfo.M10.configBlockList[i].gnssIdType,
+      sprintf(_tempStr, "GNSS:%s=%c Sats:%s%s%c%s%s%s%c\n",
+              ubloxCFGGNSSInfo.M10.configBlockList[i].gnssIdName,
               (ubloxCFGGNSSInfo.M10.configBlockList[i].enable ? 'T' : 'F'),
               ubloxCFGGNSSInfo.M10.configBlockList[i].signalList[0].name,
               "=",
@@ -76,7 +76,7 @@ bool gps_writeGNSSConfigFile() {
               (ubloxCFGGNSSInfo.M10.configBlockList[i].numSigs > 1) ? "=" : "",
               (ubloxCFGGNSSInfo.M10.configBlockList[i].numSigs > 1) ?
                 (ubloxCFGGNSSInfo.M10.configBlockList[i].signalList[1].enable ? 'T' : 'F') : ' ');
-      sdcard_writeGNSSConfigFile((uint8_t*)_dispStr, strlen(_dispStr));
+      sdcard_writeGNSSConfigFile((uint8_t*)_tempStr, strlen(_tempStr));
     }
   }
   return sdcard_closeGNSSConfigFile() > 0;

@@ -1,4 +1,7 @@
 
+// When defined, immediately displays messages on screen
+//#define DEBUG_MSG_UPDATE
+
 /********************************************************************/
 bool msg_update(const char* msgStr) {
   uint32_t _nowMS = millis();
@@ -10,6 +13,10 @@ bool msg_update(const char* msgStr) {
     _msg_state = true;
     _msg_timer = _nowMS;
     displayRefresh = true;
+#ifdef DEBUG_MSG_UPDATE
+    displayPV.prt_str(_msgStr, 20, 0, 304);
+    display_display();
+#endif
     return true;
   }
   if(_msg_state) {

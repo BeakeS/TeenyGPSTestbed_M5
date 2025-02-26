@@ -930,8 +930,12 @@ bool TeenyM5BM8563::isValid() {
 
 /********************************************************************/
 void TeenyM5BM8563::resetRTCTime() {
-  M5.Rtc.setDateTime({{RTC_DATETIME_RESET.year, RTC_DATETIME_RESET.month, RTC_DATETIME_RESET.day},
-                      {RTC_DATETIME_RESET.hour, RTC_DATETIME_RESET.minute, RTC_DATETIME_RESET.second}});
+  M5.Rtc.setDateTime({{(int16_t)RTC_DATETIME_RESET.year,
+                       (int8_t)RTC_DATETIME_RESET.month,
+                       (int8_t)RTC_DATETIME_RESET.day},
+                      {(int8_t)RTC_DATETIME_RESET.hour,
+                       (int8_t)RTC_DATETIME_RESET.minute,
+                       (int8_t)RTC_DATETIME_RESET.second}});
   _valid = false;
 }
 
@@ -941,8 +945,12 @@ bool TeenyM5BM8563::setRTCTime(rtc_datetime_t dateTime) {
     resetRTCTime();
     return false;
   }
-  M5.Rtc.setDateTime({{dateTime.year, dateTime.month, dateTime.day} ,
-                      {dateTime.hour, dateTime.minute, dateTime.second}});
+  M5.Rtc.setDateTime({{(int16_t)dateTime.year,
+                       (int8_t)dateTime.month,
+                       (int8_t)dateTime.day},
+                      {(int8_t)dateTime.hour,
+                       (int8_t)dateTime.minute,
+                       (int8_t)dateTime.second}});
   _valid = true;
   return _valid;
 }

@@ -219,12 +219,13 @@ typedef struct {
 typedef struct {
   int8_t   gnssId;
   uint8_t  gnssIdType;
+  uint8_t  pad00;
+  uint8_t  pad01;
+  char     gnssIdName[8];
   uint8_t  resTrkCh;
   uint8_t  maxTrkCh;
   uint8_t  enable;
   uint8_t  sigCfgMask;
-  uint8_t  pad00;
-  uint8_t  pad01;
 } ubloxM8CFGGNSSConfigBlock_t;
 /********************************************************************/
 typedef struct {
@@ -243,6 +244,9 @@ typedef struct {
 typedef struct {
   int8_t   gnssId;
   uint8_t  gnssIdType;
+  uint8_t  pad00;
+  uint8_t  pad01;
+  char     gnssIdName[8];
   uint8_t  enable;
   uint8_t  numSigs;
   ubloxM10CFGGNSSSignal_t signalList[2];
@@ -260,6 +264,26 @@ typedef struct {
   ubloxM8CFGGNSSInfo_t M8;
   ubloxM10CFGGNSSInfo_t M10;
 } ubloxCFGGNSSInfo_t;
+/********************************************************************/
+// GNSS State - Unknown=-1, Disabled=0, Enabled=1
+typedef struct {
+  int8_t GPS;
+  int8_t GPS_L1CA;
+  int8_t SBAS;
+  int8_t SBAS_L1CA;
+  int8_t Galileo;
+  int8_t Galileo_E1;
+  int8_t BeiDou;
+  int8_t BeiDou_B1;
+  int8_t BeiDou_B1C;
+  int8_t IMES;
+  int8_t QZSS;
+  int8_t QZSS_L1CA;
+  int8_t QZSS_L1S;
+  int8_t GLONASS;
+  int8_t GLONASS_L1;
+  int8_t UNKNOWN;
+} ubloxCFGGNSSState_t;
 
 /********************************************************************/
 // UBX-MON-GNSS Info Struct
@@ -412,10 +436,11 @@ class TeenyUbloxConnect {
     bool    pollProtocolVersion(uint16_t maxWait_ = defaultMaxWait);
     uint8_t getProtocolVersionHigh(uint16_t maxWait_ = defaultMaxWait);
     uint8_t getProtocolVersionLow(uint16_t maxWait_ = defaultMaxWait);
-    bool    pollGNSSSelectionInfo(uint16_t maxWait_ = defaultMaxWait);
-    bool    pollGNSSConfigInfo(uint16_t maxWait_ = defaultMaxWait);
+    bool    pollGNSSSelection(uint16_t maxWait_ = defaultMaxWait);
+    bool    pollGNSSConfig(uint16_t maxWait_ = defaultMaxWait);
     bool    setGNSSConfig(uint8_t gnssId, bool enable, uint16_t maxWait_ = defaultMaxWait);
     bool    setGNSSSignalConfig(uint8_t gnssId, const char* signalName, bool enable, uint16_t maxWait_ = defaultMaxWait);
+    bool    setGNSSConfigState(ubloxCFGGNSSState_t gnssConfigState, uint16_t maxWait_ = defaultMaxWait);
     bool    setMeasurementRate(uint16_t rate_, uint16_t maxWait_ = defaultMaxWait);
     bool    setNavigationRate(uint16_t rate_, uint16_t maxWait_ = defaultMaxWait);
     bool    setAutoNAVPVT(bool enable_, uint16_t maxWait_ = defaultMaxWait);
@@ -444,8 +469,9 @@ class TeenyUbloxConnect {
     bool    pollNAVSAT(uint16_t maxWait_ = defaultMaxWait); // Use only when autoNAVSATRate = 0
 
     // Ublox GNSS info data access
-    ubloxMONGNSSInfo_t getGNSSSelectionInfo();
-    ubloxCFGGNSSInfo_t getGNSSConfigInfo();
+    ubloxMONGNSSInfo_t  getGNSSSelectionInfo();
+    ubloxCFGGNSSInfo_t  getGNSSConfigInfo();
+    ubloxCFGGNSSState_t getGNSSConfigState();
 
     // Ublox navpvt data access
     void     getNAVPVTPacket(uint8_t *packet_); // Get the full NAV-PVT packet
@@ -505,13 +531,18 @@ class TeenyUbloxConnect {
     bool setPortOutput_M10(uint8_t portID_, uint8_t comSettings_, uint16_t maxWait_ = defaultMaxWait);
     void setSerialRate_M8(uint32_t baudrate_, uint8_t uartPort_ = COM_PORT_UART1, uint16_t maxWait_ = defaultMaxWait);
     void setSerialRate_M10(uint32_t baudrate_, uint8_t uartPort_ = COM_PORT_UART1, uint16_t maxWait_ = defaultMaxWait);
-    bool pollGNSSConfigInfo_M8(uint16_t maxWait_ = defaultMaxWait);
-    bool pollGNSSConfigInfo_M9(uint16_t maxWait_ = defaultMaxWait);
-    bool pollGNSSConfigInfo_M10(uint16_t maxWait_ = defaultMaxWait);
+    void resetGNSSConfigState();
+    bool pollGNSSConfig_M8(uint16_t maxWait_ = defaultMaxWait);
+    bool pollGNSSConfig_M9(uint16_t maxWait_ = defaultMaxWait);
+    bool pollGNSSConfig_M10(uint16_t maxWait_ = defaultMaxWait);
     bool setGNSSConfig_M8(uint8_t gnssId, bool enable, uint16_t maxWait_ = defaultMaxWait);
     bool setGNSSConfig_M10(uint8_t gnssId, bool enable, uint16_t maxWait_ = defaultMaxWait);
     bool setGNSSSignalConfig_M8(uint8_t gnssId, const char* signalName, bool enable, uint16_t maxWait_ = defaultMaxWait);
+    bool setGNSSSignalConfig_M9(uint8_t gnssId, const char* signalName, bool enable, uint16_t maxWait_ = defaultMaxWait);
     bool setGNSSSignalConfig_M10(uint8_t gnssId, const char* signalName, bool enable, uint16_t maxWait_ = defaultMaxWait);
+    bool setGNSSConfigState_M8(ubloxCFGGNSSState_t gnssConfigState, uint16_t maxWait_ = defaultMaxWait);
+    bool setGNSSConfigState_M9(ubloxCFGGNSSState_t gnssConfigState, uint16_t maxWait_ = defaultMaxWait);
+    bool setGNSSConfigState_M10(ubloxCFGGNSSState_t gnssConfigState, uint16_t maxWait_ = defaultMaxWait);
     bool setMeasurementRate_M8(uint16_t rate_, uint16_t maxWait_ = defaultMaxWait);
     bool setMeasurementRate_M10(uint16_t rate_, uint16_t maxWait_ = defaultMaxWait);
     bool setNavigationRate_M8(uint16_t rate_, uint16_t maxWait_ = defaultMaxWait);
@@ -529,7 +560,9 @@ class TeenyUbloxConnect {
     ubloxPacket_t        responsePacket;
     ubloxACKNAKPacket_t  acknowledgePacket;
     ubloxMONGNSSInfo_t   ubloxMONGNSSInfo;
+    bool                 ubloxCFGGNSSInfoValid = false;
     ubloxCFGGNSSInfo_t   ubloxCFGGNSSInfo;
+    ubloxCFGGNSSState_t  ubloxCFGGNSSState;
     ubloxPacket_t        ubloxNAVPVTPacketBuffer;
     uint8_t              ubloxNAVPVTPacket[UBX_NAV_PVT_PACKETLENGTH];
     ubloxNAVPVTInfo_t    ubloxNAVPVTInfo;

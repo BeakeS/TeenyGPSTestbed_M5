@@ -7,6 +7,7 @@ enum device_mode_t : int16_t {
   DM_GPSLOGR,
   DM_GPSSTAT,
   DM_GPSNSAT,
+  DM_GPSSCAL,
   DM_GPSSCFG,
   DM_GPSSSTP,
   DM_GPSEMU_M8,
@@ -21,6 +22,7 @@ typedef struct {
   uint8_t  GPSRESET = GPS_NORESET;
   uint8_t  UBXPKTLOGMODE = UBXPKTLOG_ALL;
   uint8_t  GPSLOGMODE = GPSLOG_KML;
+  uint8_t  GPSCALIBRATIONPERIOD = 12;
   uint8_t  EMUL_UBXPKTSOURCE = EMU_PGMINPUT;
   uint8_t  EMUL_NUMCOLDSTARTPACKETS = 10;
   uint8_t  DISPLAYBRIGHTNESS = 50;
@@ -28,6 +30,7 @@ typedef struct {
   bool     STATUSLED = true;
   uint8_t  spare00;
   uint8_t  spare01;
+  uint8_t  spare02;
 } device_state_t;
 device_state_t deviceState_defaults;
 device_state_t deviceState;
@@ -50,6 +53,18 @@ bool writeDeviceStateKVS() {
   rc = deviceStateKVS.set("DEVICE_MODE", strlen("DEVICE_MODE"),
                           (uint8_t*)&deviceState.DEVICE_MODE, sizeof(deviceState.DEVICE_MODE));
   if(!rc) return false;
+  rc = deviceStateKVS.set("GPSRESET", strlen("GPSRESET"),
+                          (uint8_t*)&deviceState.GPSRESET, sizeof(deviceState.GPSRESET));
+  if(!rc) return false;
+  rc = deviceStateKVS.set("UBXPKTLOGMODE", strlen("UBXPKTLOGMODE"),
+                          (uint8_t*)&deviceState.UBXPKTLOGMODE, sizeof(deviceState.UBXPKTLOGMODE));
+  if(!rc) return false;
+  rc = deviceStateKVS.set("GPSLOGMODE", strlen("GPSLOGMODE"),
+                          (uint8_t*)&deviceState.GPSLOGMODE, sizeof(deviceState.GPSLOGMODE));
+  if(!rc) return false;
+  rc = deviceStateKVS.set("GPSCALIBRATIONPERIOD", strlen("GPSCALIBRATIONPERIOD"),
+                          (uint8_t*)&deviceState.GPSCALIBRATIONPERIOD, sizeof(deviceState.GPSCALIBRATIONPERIOD));
+  if(!rc) return false;
   rc = deviceStateKVS.set("EMUL_UBXPKTSOURCE", strlen("EMUL_UBXPKTSOURCE"),
                           (uint8_t*)&deviceState.EMUL_UBXPKTSOURCE, sizeof(deviceState.EMUL_UBXPKTSOURCE));
   if(!rc) return false;
@@ -65,15 +80,6 @@ bool writeDeviceStateKVS() {
   rc = deviceStateKVS.set("STATUSLED", strlen("STATUSLED"),
                           (uint8_t*)&deviceState.STATUSLED, sizeof(deviceState.STATUSLED));
   if(!rc) return false;
-  rc = deviceStateKVS.set("GPSRESET", strlen("GPSRESET"),
-                          (uint8_t*)&deviceState.GPSRESET, sizeof(deviceState.GPSRESET));
-  if(!rc) return false;
-  rc = deviceStateKVS.set("UBXPKTLOGMODE", strlen("UBXPKTLOGMODE"),
-                          (uint8_t*)&deviceState.UBXPKTLOGMODE, sizeof(deviceState.UBXPKTLOGMODE));
-  if(!rc) return false;
-  rc = deviceStateKVS.set("GPSLOGMODE", strlen("GPSLOGMODE"),
-                          (uint8_t*)&deviceState.GPSLOGMODE, sizeof(deviceState.GPSLOGMODE));
-  if(!rc) return false;
   return true;
 }
 
@@ -85,6 +91,18 @@ bool readDeviceStateKVS() {
   if(!rc) return false;
   rc = deviceStateKVS.get("DEVICE_MODE", strlen("DEVICE_MODE"),
                           (uint8_t*)&deviceState.DEVICE_MODE, sizeof(deviceState.DEVICE_MODE));
+  if(!rc) return false;
+  rc = deviceStateKVS.get("GPSRESET", strlen("GPSRESET"),
+                          (uint8_t*)&deviceState.GPSRESET, sizeof(deviceState.GPSRESET));
+  if(!rc) return false;
+  rc = deviceStateKVS.get("UBXPKTLOGMODE", strlen("UBXPKTLOGMODE"),
+                          (uint8_t*)&deviceState.UBXPKTLOGMODE, sizeof(deviceState.UBXPKTLOGMODE));
+  if(!rc) return false;
+  rc = deviceStateKVS.get("GPSLOGMODE", strlen("GPSLOGMODE"),
+                          (uint8_t*)&deviceState.GPSLOGMODE, sizeof(deviceState.GPSLOGMODE));
+  if(!rc) return false;
+  rc = deviceStateKVS.get("GPSCALIBRATIONPERIOD", strlen("GPSCALIBRATIONPERIOD"),
+                          (uint8_t*)&deviceState.GPSCALIBRATIONPERIOD, sizeof(deviceState.GPSCALIBRATIONPERIOD));
   if(!rc) return false;
   rc = deviceStateKVS.get("EMUL_UBXPKTSOURCE", strlen("EMUL_UBXPKTSOURCE"),
                           (uint8_t*)&deviceState.EMUL_UBXPKTSOURCE, sizeof(deviceState.EMUL_UBXPKTSOURCE));
@@ -100,15 +118,6 @@ bool readDeviceStateKVS() {
   if(!rc) return false;
   rc = deviceStateKVS.get("STATUSLED", strlen("STATUSLED"),
                           (uint8_t*)&deviceState.STATUSLED, sizeof(deviceState.STATUSLED));
-  if(!rc) return false;
-  rc = deviceStateKVS.get("GPSRESET", strlen("GPSRESET"),
-                          (uint8_t*)&deviceState.GPSRESET, sizeof(deviceState.GPSRESET));
-  if(!rc) return false;
-  rc = deviceStateKVS.get("UBXPKTLOGMODE", strlen("UBXPKTLOGMODE"),
-                          (uint8_t*)&deviceState.UBXPKTLOGMODE, sizeof(deviceState.UBXPKTLOGMODE));
-  if(!rc) return false;
-  rc = deviceStateKVS.get("GPSLOGMODE", strlen("GPSLOGMODE"),
-                          (uint8_t*)&deviceState.GPSLOGMODE, sizeof(deviceState.GPSLOGMODE));
   if(!rc) return false;
   return true;
 }

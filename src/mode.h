@@ -71,11 +71,27 @@ void deviceMode_init() {
         msg_update("ERROR - GPS Missing");
       }
       break;
+    case DM_GPSSCAL:
+      //statusLED.pulse_repeat(1);
+      rtc.setValid(false);
+      gpsSerial = &Serial2;
+      if(gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_NORESET, 0, 0, 0)) {
+        gpsEnabled = true;
+        sprintf(_dispStr, "GPS CONN UBPV=%02d.%02d",
+                gps.getProtocolVersionHigh(),
+                gps.getProtocolVersionLow());
+        msg_update(_dispStr);
+        deviceState.GPSRESET = GPS_NORESET;
+      } else {
+        gpsEnabled = false;
+        msg_update("ERROR - GPS Missing");
+      }
+      break;
     case DM_GPSSCFG:
       //statusLED.pulse_repeat(1);
       rtc.setValid(false);
       gpsSerial = &Serial2;
-      if(gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, deviceState.GPSRESET, 0, 0, 0)) {
+      if(gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_NORESET, 0, 0, 0)) {
         gpsEnabled = true;
         sprintf(_dispStr, "GPS CONN UBPV=%02d.%02d",
                 gps.getProtocolVersionHigh(),
@@ -146,6 +162,11 @@ void deviceMode_end() {
       if(gpsEnabled) gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_NORESET, 0, 0, 0);
       gpsEnabled = false;
       msg_update("GPS NAVSAT Stopped");
+      break;
+    case DM_GPSSCAL:
+      if(gpsEnabled) gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_NORESET, 0, 0, 0);
+      gpsEnabled = false;
+      msg_update("GPS SATCAL Stopped");
       break;
     case DM_GPSSCFG:
       if(gpsEnabled) gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_NORESET, 0, 0, 0);

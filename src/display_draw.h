@@ -140,7 +140,7 @@ void display_refresh() {
                 battery.getPercentage(),
                 battery.isCharging() ? "Charging" : "");
         displayPV.prt_str(_dispStr, 20, 0, 270);
-      } else if(menu.isMenuPageCurrent(menuPageGPSRcvr)) {
+      } else if(menu.isMenuPageCurrent(menuPageGPSReceiver)) {
         // RTC Clock
         displayPV.prt_str(getRTCClockISO8601DateTimeStr(), 19, 6, 24);
         if(gps.isPacketValid()) {
@@ -182,7 +182,7 @@ void display_refresh() {
       //        gps.isPacketValid(), gps.isLocationValid(),
       //        gps.isDateValid(), gps.isTimeValid());
       //displayPV.prt_str(_dispStr, 20, 0, 284);
-      } else if(menu.isMenuPageCurrent(menuPageGPSLogr)) {
+      } else if(menu.isMenuPageCurrent(menuPageGPSLogger)) {
         // RTC Clock
         displayPV.prt_str(getRTCClockISO8601DateTimeStr(), 19, 6, 24);
         if(gps.isPacketValid()) {
@@ -230,7 +230,7 @@ void display_refresh() {
       //        gps.isPacketValid(), gps.isLocationValid(),
       //        gps.isDateValid(), gps.isTimeValid());
       //displayPV.prt_str(_dispStr, 20, 0, 284);
-      } else if(menu.isMenuPageCurrent(menuPageGPSStat)) {
+      } else if(menu.isMenuPageCurrent(menuPageGPSNavStat)) {
         if(gps.isPacketValid()) {
           // GPS Clock
           displayPV.prt_str(getGPSISO8601DateTimeStr(), 19, 6, 20);
@@ -260,8 +260,11 @@ void display_refresh() {
           displayPV.prt_str(_dispStr, 20, 0, 180);
           sprintf(_dispStr, "MultiSpoofInd=%d", navstatusInfo.multipleSpoofingIndications);
           displayPV.prt_str(_dispStr, 20, 0, 198);
+        } else {
+          sprintf(_dispStr, "**NO NAVSTAT DATA**");
+          displayPV.prt_str(_dispStr, 20, 0, 64);
         }
-      } else if(menu.isMenuPageCurrent(menuPageGPSNsat)) {
+      } else if(menu.isMenuPageCurrent(menuPageGPSNavSat)) {
         // GPS Clock
         if(gps.isPacketValid()) {
           displayPV.prt_str(getGPSISO8601DateTimeStr(), 19, 6, 24);
@@ -269,7 +272,7 @@ void display_refresh() {
           sprintf(_dispStr, "** NO NAVPVT DATA **");
           displayPV.prt_str(_dispStr, 20, 0, 24);
         }
-        if(menu_GPSNsatDisplayMap) {
+        if(menu_GPSNavSatDisplayMap) {
           // NAVSAT Map
           drawSatConstellation(0);
         } else {
@@ -318,7 +321,37 @@ void display_refresh() {
       //        navsatInfo.validPacket, navsatInfo.numSvs,
       //        navsatInfo.numSvsHealthy, navsatInfo.numSvsUsed);
       //displayPV.prt_str(_dispStr, 20, 0, 284);
-      } else if(menu.isMenuPageCurrent(menuPageGPSScfg)) {
+      } else if(menu.isMenuPageCurrent(menuPageGPSSatCal)) {
+        // GPS Clock
+        if(gps.isPacketValid()) {
+          displayPV.prt_str(getGPSISO8601DateTimeStr(), 19, 6, 24);
+        } else {
+          sprintf(_dispStr, "** NO NAVPVT DATA **");
+          displayPV.prt_str(_dispStr, 20, 0, 24);
+        }
+        sprintf(_dispStr, "UbloxModule = M%d", satcalUbloxModuleType);
+        displayPV.prt_str(_dispStr, 20, 0, 44);
+        // NAVSAT Data
+        ubloxNAVSATInfo_t navsatInfo;
+        gps.getNAVSATInfo(navsatInfo);
+        if(navsatInfo.validPacket) {
+          sprintf(_dispStr, "   SATELLITE INFO");
+          displayPV.prt_str(_dispStr, 20, 0, 64);
+          sprintf(_dispStr, "Total=%d/%d", navsatInfo.numSvs, navsatInfo.numSvsReceived);
+          displayPV.prt_str(_dispStr, 20, 0, 84);
+          sprintf(_dispStr, "HealthySignal=%d", navsatInfo.numSvsHealthy);
+          displayPV.prt_str(_dispStr, 20, 0, 104);
+          sprintf(_dispStr, "EphemerisValid=%d", navsatInfo.numSvsEphValid);
+          displayPV.prt_str(_dispStr, 20, 0, 124);
+          sprintf(_dispStr, "UsedForNav=%d", navsatInfo.numSvsUsed);
+          displayPV.prt_str(_dispStr, 20, 0, 144);
+        }
+        sprintf(_dispStr, "-- SATCAL STATUS --");
+        displayPV.prt_str(_dispStr, 20, 0, 170);
+        displayPV.prt_str(satCalibration_getStatus(), 20, 0, 188);
+        displaySS.drawSSSixDigitTime(satCalibration_getTimeRemaining()/1000,
+                                     60, 60, 43, 220, 18, 5, WHITE);
+      } else if(menu.isMenuPageCurrent(menuPageGPSSatCfg)) {
       } else if(menu.isMenuPageCurrent(menuPageGNSSSelInfo)) {
         ubloxMONGNSSInfo_t gnssSelectInfo = gps.getGNSSSelectionInfo();
         sprintf(_dispStr, "Supported:%s%s%s%s",
@@ -341,7 +374,7 @@ void display_refresh() {
         displayPV.prt_str(_dispStr, 20, 0, 64);
         sprintf(_dispStr, "Simultaneous: %d", gnssSelectInfo.simultaneousGNSS);
         displayPV.prt_str(_dispStr, 20, 0, 84);
-      } else if(menu.isMenuPageCurrent(menuPageGNSSCfgInfo)) {
+      } else if(menu.isMenuPageCurrent(menuPageGNSSSatCfgInfo)) {
         uint8_t ubloxModuleType = gps.getUbloxModuleType();
         ubloxCFGGNSSInfo_t ubloxCFGGNSSInfo = gps.getGNSSConfigInfo();
         if(ubloxModuleType == UBLOX_M8_MODULE) {
@@ -379,8 +412,9 @@ void display_refresh() {
             displayPV.prt_str(_dispStr, 20, 0, (i*18)+64);
           }
         }
-      } else if(menu.isMenuPageCurrent(menuPageGPSEmuM8) ||
-                menu.isMenuPageCurrent(menuPageGPSEmuM10)) {
+      } else if(menu.isMenuPageCurrent(menuPageGPSSingleStep)) {
+      } else if(menu.isMenuPageCurrent(menuPageGPSEmulateM8) ||
+                menu.isMenuPageCurrent(menuPageGPSEmulateM10)) {
         sprintf(_dispStr, "   EMULATOR STATE");
         displayPV.prt_str(_dispStr, 20, 0, 24);
         sprintf(_dispStr, "BaudRate=%d", emulator.getBaudRate());

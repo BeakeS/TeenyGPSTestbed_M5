@@ -228,6 +228,33 @@ uint16_t sdcard_closeKMLLoggingFile() {
 }
 
 /********************************************************************/
+// GNSS Calibrate File Writer
+/********************************************************************/
+uint32_t gnssCalibrateFileWriteCount;
+/********************************************************************/
+bool sdcard_openGNSSCalibrateFile() {
+  if(!sdcardEnabled) return false;
+  if(SD.exists("/GNSSSCAL.txt")) {
+    if(!SD.remove("/GNSSSCAL.txt")) return false;
+  }
+  //SdFile::dateTimeCallback(sdDateTimeCB);
+  sdFile = SD.open("/GNSSSCAL.txt", FILE_WRITE);
+  if(!sdFile) return false;
+  gnssCalibrateFileWriteCount = 0;
+  return true;
+}
+/********************************************************************/
+void sdcard_writeGNSSCalibrateFile(const uint8_t *buf, size_t size) {
+  sdFile.write(buf, size);
+  gnssCalibrateFileWriteCount++;
+}
+/********************************************************************/
+uint16_t sdcard_closeGNSSCalibrateFile() {
+  sdFile.close();
+  return gnssCalibrateFileWriteCount;
+}
+
+/********************************************************************/
 // UBX Emulation Loop File Reader
 /********************************************************************/
 char     ubxInputFileName[14]={0};
