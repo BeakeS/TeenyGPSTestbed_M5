@@ -162,8 +162,8 @@ uint8_t menuUbloxModuleTypeMax = 99;
 TeenyMenuItem menuItemUbloxModuleType("UbloxModule", menuUbloxModuleType, menuUbloxModuleTypeMin, menuUbloxModuleTypeMax, true);
 //
 // gnss satellite select info
-void menu_pollGNSSSelInfoCB(); // forward declaration
-TeenyMenuPage menuPageGNSSSelInfo("GNSS SELECT INFO", menu_pollGNSSSelInfoCB);
+void menu_pollGNSSSelectionCB(); // forward declaration
+TeenyMenuPage menuPageGNSSSelInfo("GNSS SELECT INFO", menu_pollGNSSSelectionCB);
 TeenyMenuItem menuItemGNSSSelInfo("GNSS Select Info", menuPageGNSSSelInfo);
 TeenyMenuItem menuItemGNSSSelInfoExit(false); // optional return menu item
 TeenyMenuItem menuItemGNSSSelInfoLabel0("");
@@ -173,8 +173,8 @@ TeenyMenuItem menuItemGNSSSelInfoLabel3("");
 TeenyMenuItem menuItemGNSSSelInfoLabel4("");
 //
 // gnss satellite config info
-void menu_pollGNSSSatCfgInfoCB(); // forward declaration
-TeenyMenuPage menuPageGNSSSatCfgInfo("GNSS CONFIG INFO", menu_pollGNSSSatCfgInfoCB);
+void menu_pollGNSSSatConfigCB(); // forward declaration
+TeenyMenuPage menuPageGNSSSatCfgInfo("GNSS CONFIG INFO", menu_pollGNSSSatConfigCB);
 TeenyMenuItem menuItemGNSSSatCfgInfo("GNSS Config Info", menuPageGNSSSatCfgInfo);
 TeenyMenuItem menuItemGNSSSatCfgInfoExit(false); // optional return menu item
 TeenyMenuItem menuItemGNSSSatCfgInfoLabel0("");
@@ -854,6 +854,7 @@ void menu_GPSResetCB() {
 
 /********************************************************************/
 void menu_entrGPSReceiverCB() {
+  display_processingMsg();
   deviceState.DEVICE_MODE = DM_GPSRCVR;
   deviceMode_init();
   displayRefresh = true;
@@ -861,6 +862,7 @@ void menu_entrGPSReceiverCB() {
 
 /********************************************************************/
 void menu_exitGPSReceiverCB() {
+  display_processingMsg();
   deviceMode_end();
   menu.exitToParentMenuPage();
   displayRefresh = true;
@@ -868,6 +870,7 @@ void menu_exitGPSReceiverCB() {
 
 /********************************************************************/
 void menu_entrGPSLoggerCB() {
+  display_processingMsg();
   deviceState.DEVICE_MODE = DM_GPSLOGR;
   deviceMode_init();
   displayRefresh = true;
@@ -915,6 +918,7 @@ void menu_stopGPSLoggerCB() {
 
 /********************************************************************/
 void menu_exitGPSLoggerCB() {
+  display_processingMsg();
   menu_stopGPSLoggerCB();
   deviceMode_end();
   menu.exitToParentMenuPage();
@@ -923,6 +927,7 @@ void menu_exitGPSLoggerCB() {
 
 /********************************************************************/
 void menu_entrGPSNavStatCB() {
+  display_processingMsg();
   deviceState.DEVICE_MODE = DM_GPSSTAT;
   deviceMode_init();
   displayRefresh = true;
@@ -930,6 +935,7 @@ void menu_entrGPSNavStatCB() {
 
 /********************************************************************/
 void menu_exitGPSNavStatCB() {
+  display_processingMsg();
   deviceMode_end();
   menu.exitToParentMenuPage();
   displayRefresh = true;
@@ -937,6 +943,7 @@ void menu_exitGPSNavStatCB() {
 
 /********************************************************************/
 void menu_entrGPSNavSatCB() {
+  display_processingMsg();
   deviceState.DEVICE_MODE = DM_GPSNSAT;
   deviceMode_init();
   menu_GPSNavSatDisplayMap = false;
@@ -954,6 +961,7 @@ void menu_GPSNavSatToggleViewCB() {
 
 /********************************************************************/
 void menu_exitGPSNavSatCB() {
+  display_processingMsg();
   deviceMode_end();
   menu.exitToParentMenuPage();
   displayRefresh = true;
@@ -961,6 +969,7 @@ void menu_exitGPSNavSatCB() {
 
 /********************************************************************/
 void menu_entrGPSSatCalCB() {
+  display_processingMsg();
   deviceState.DEVICE_MODE = DM_GPSSCAL;
   deviceMode_init();
   satCalibration_enter();
@@ -969,6 +978,7 @@ void menu_entrGPSSatCalCB() {
 
 /********************************************************************/
 void menu_exitGPSSatCalCB() {
+  display_processingMsg();
   deviceMode_end();
   satCalibration_exit();
   menu.exitToParentMenuPage();
@@ -977,6 +987,7 @@ void menu_exitGPSSatCalCB() {
 
 /********************************************************************/
 void menu_entrGPSSatCfgCB() {
+  display_processingMsg();
   deviceState.DEVICE_MODE = DM_GPSSCFG;
   deviceMode_init();
   gnssReadConfig();
@@ -985,8 +996,9 @@ void menu_entrGPSSatCfgCB() {
 }
 
 /********************************************************************/
-void menu_pollGNSSSelInfoCB() {
+void menu_pollGNSSSelectionCB() {
   char _msgStr[22];
+  display_processingMsg();
   bool rcode = gps.pollGNSSSelection();
   sprintf(_msgStr, "Poll MON-GNSS rc=%d", rcode);
   msg_update(_msgStr);
@@ -994,8 +1006,9 @@ void menu_pollGNSSSelInfoCB() {
 }
 
 /********************************************************************/
-void menu_pollGNSSSatCfgInfoCB() {
+void menu_pollGNSSSatConfigCB() {
   char _msgStr[22];
+  display_processingMsg();
   bool rcode = gps.pollGNSSConfig();
   sprintf(_msgStr, "Poll CFG-GNSS rc=%d", rcode);
   msg_update(_msgStr);
@@ -1080,6 +1093,7 @@ void menu_gnssCfgGLONASSToggleCB() {
 
 /********************************************************************/
 void menu_exitGPSSatCfgCB() {
+  display_processingMsg();
   deviceMode_end();
   menu.exitToParentMenuPage();
   displayRefresh = true;
@@ -1095,6 +1109,7 @@ void menu_entrGPSSingleStepCB() {
 /********************************************************************/
 void menu_sstBeginCB() {
   char _msgStr[22];
+  display_processingMsg();
   //gpsSerial->begin(GPS_BAUD_RATE);
 #ifdef CONFIG_IDF_TARGET_ESP32S3 // Core S3SE fix using the correct serial pins
   gpsSerial->begin(GPS_BAUD_RATE, SERIAL_8N1, RXD2, TXD2);
@@ -1188,6 +1203,7 @@ void menu_cancelGPSFactoryResetCB() {
 
 /********************************************************************/
 void menu_confirmGPSFactoryResetCB() {
+  display_processingMsg();
   menu.exitToParentMenuPage();
   gpsSerial = &Serial2;
   if(gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_NORESET, 0, 0) &&

@@ -7,8 +7,6 @@ void deviceMode_init() {
       //statusLED.pulse_repeat(1, 20);
       break;
     case DM_GPSRCVR:
-      display_processingMsg();
-      //statusLED.pulse_repeat(1);
       rtc.setValid(false);
       gpsSerial = &Serial2;
       if(gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, deviceState.GPSRESET, 1, 0, 0)) {
@@ -24,7 +22,6 @@ void deviceMode_init() {
       }
       break;
     case DM_GPSLOGR:
-      display_processingMsg();
       //statusLED.pulse_repeat(1);
       rtc.setValid(false);
       gpsSerial = &Serial2;
@@ -42,7 +39,6 @@ void deviceMode_init() {
       }
       break;
     case DM_GPSSTAT:
-      display_processingMsg();
       //statusLED.pulse_repeat(1);
       rtc.setValid(false);
       gpsSerial = &Serial2;
@@ -59,7 +55,6 @@ void deviceMode_init() {
       }
       break;
     case DM_GPSNSAT:
-      display_processingMsg();
       //statusLED.pulse_repeat(1);
       rtc.setValid(false);
       gpsSerial = &Serial2;
@@ -76,7 +71,6 @@ void deviceMode_init() {
       }
       break;
     case DM_GPSSCAL:
-      display_processingMsg();
       //statusLED.pulse_repeat(1);
       rtc.setValid(false);
       gpsSerial = &Serial2;
@@ -93,7 +87,6 @@ void deviceMode_init() {
       }
       break;
     case DM_GPSSCFG:
-      display_processingMsg();
       //statusLED.pulse_repeat(1);
       rtc.setValid(false);
       gpsSerial = &Serial2;
@@ -151,7 +144,6 @@ void deviceMode_end() {
   switch(deviceState.DEVICE_MODE) {
     case DM_GPSRCVR:
       if(gpsEnabled) {
-        display_processingMsg();
         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_NORESET, 0, 0, 0);
       }
       gpsEnabled = false;
@@ -159,7 +151,6 @@ void deviceMode_end() {
       break;
     case DM_GPSLOGR:
       if(gpsEnabled) {
-        display_processingMsg();
         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_NORESET, 0, 0, 0);
       }
       gpsEnabled = false;
@@ -167,7 +158,6 @@ void deviceMode_end() {
       break;
     case DM_GPSSTAT:
       if(gpsEnabled) {
-        display_processingMsg();
         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_NORESET, 0, 0, 0);
       }
       gpsEnabled = false;
@@ -175,7 +165,6 @@ void deviceMode_end() {
       break;
     case DM_GPSNSAT:
       if(gpsEnabled) {
-        display_processingMsg();
         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_NORESET, 0, 0, 0);
       }
       gpsEnabled = false;
@@ -183,7 +172,6 @@ void deviceMode_end() {
       break;
     case DM_GPSSCAL:
       if(gpsEnabled) {
-        display_processingMsg();
         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_NORESET, 0, 0, 0);
       }
       gpsEnabled = false;
@@ -191,10 +179,8 @@ void deviceMode_end() {
       break;
     case DM_GPSSCFG:
       if(gpsEnabled) {
-        display_processingMsg();
         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_NORESET, 0, 0, 0);
       }
-      display_processingMsg();
       gpsEnabled = false;
       msg_update("GPS SATCFG Stopped");
       break;
