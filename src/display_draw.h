@@ -491,3 +491,9 @@ void display_update() {
   }
 }
 
+/********************************************************************/
+void display_processingMsg() {
+  display_clearDisplay();
+  displayPV.prt_str("PROCESSING...", 20, 36, 160);
+  display_display();
+}

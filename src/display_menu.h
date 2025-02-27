@@ -30,6 +30,7 @@ bool displayUpdate;
 /********************************************************************/
 // forward declarations
 bool msg_update(const char* msgStr);
+void display_processingMsg();
 void deviceMode_init();
 void deviceMode_end();
 void satCalibration_enter();
@@ -1002,66 +1003,77 @@ void menu_pollGNSSSatCfgInfoCB() {
 
 /********************************************************************/
 void menu_gnssCfgGPSToggleCB() {
+  display_processingMsg();
   gnssToggleConfig("GPS");
   displayRefresh = true;
 }
 
 /********************************************************************/
 void menu_gnssCfgSBASToggleCB() {
+  display_processingMsg();
   gnssToggleConfig("SBAS");
   displayRefresh = true;
 }
 
 /********************************************************************/
 void menu_gnssCfgGalileoToggleCB() {
+  display_processingMsg();
   gnssToggleConfig("Galileo");
   displayRefresh = true;
 }
 
 /********************************************************************/
 void menu_gnssCfgBeiDouToggleCB() {
+  display_processingMsg();
   gnssToggleConfig("BeiDou");
   displayRefresh = true;
 }
 
 /********************************************************************/
 void menu_gnssCfgBeiDouB1ToggleCB() {
+  display_processingMsg();
   gnssToggleConfig("BeiDou_B1");
   displayRefresh = true;
 }
 
 /********************************************************************/
 void menu_gnssCfgBeiDouB1CToggleCB() {
+  display_processingMsg();
   gnssToggleConfig("BeiDou_B1C");
   displayRefresh = true;
 }
 
 /********************************************************************/
 void menu_gnssCfgIMESToggleCB() {
+  display_processingMsg();
   gnssToggleConfig("IMES");
   displayRefresh = true;
 }
 
 /********************************************************************/
 void menu_gnssCfgQZSSToggleCB() {
+  display_processingMsg();
   gnssToggleConfig("QZSS");
   displayRefresh = true;
 }
 
 /********************************************************************/
 void menu_gnssCfgQZSSL1CAToggleCB() {
+  display_processingMsg();
   gnssToggleConfig("QZSS_L1CA");
   displayRefresh = true;
 }
 
 /********************************************************************/
 void menu_gnssCfgQZSSL1SToggleCB() {
+  display_processingMsg();
   gnssToggleConfig("QZSS_L1S");
   displayRefresh = true;
 }
 
 /********************************************************************/
 void menu_gnssCfgGLONASSToggleCB() {
+  display_processingMsg();
   gnssToggleConfig("GLONASS");
   displayRefresh = true;
 }
