@@ -50,12 +50,17 @@ Modes of Operation
 
 ![satmap](https://github.com/user-attachments/assets/4119fc8f-0d75-4e7a-a513-4fce083ca1e6)
 
-5. SATCFG: Satellite Configuration Tool
+5. SATCAL: Satellite Calibration Tool
+ - Scans each GNSS individually and records satellites, signal strength, and status
+
+![gnsscalibration](https://github.com/user-attachments/assets/d76e7595-5d09-44f8-af4b-93cf7d234fab)
+
+6. SATCFG: Satellite Configuration Tool
  - Displays GNSS system configuration and allows enabling/disabling selected GNSS systems.
 
 ![gnssconfig](https://github.com/user-attachments/assets/b6c171d3-360c-4afe-a90b-d0e92ae4508c)
 
-6. EMUM8 & EMUM10: GPS Emulation
+7. EMUM8 & EMUM10: GPS Emulation
  - EMUM8: Emulates Beitian BN-880Q (Ublox M8) GPS module.
  - EMUM10: Emulates Beitian BE-880Q (Ublox M10) GPS module.
  - Both modules replay Ublox NAV-PVT, NAV-STATUS, and NAV-SAT packets from ROM or SD card with progressive date/time updates.
