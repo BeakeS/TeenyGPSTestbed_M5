@@ -66,11 +66,13 @@ bool satCalibration_enter() {
     } else {
       satcalStep = SC_END;
       msg_update("GNSS CAL ERROR_00");
+      satCalibration_setStatus("-SDCARD ERROR");
     }
   } else {
     satcalUbloxModuleType = UBLOX_UNKNOWN_MODULE;
     satcalStep = SC_END;
     msg_update("GNSS CAL ERROR_01");
+    satCalibration_setStatus("-GPS ERROR");
   }
   return false;
 }

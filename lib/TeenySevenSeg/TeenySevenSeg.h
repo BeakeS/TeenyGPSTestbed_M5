@@ -187,17 +187,25 @@ class TeenySevenSeg {
     uint8_t _digitSegV_error[7] = {1, 0, 0, 1, 1, 1, 1};
 
     void drawSSSegStripe(segName_t segName, int16_t n, int16_t x, int16_t y, int16_t l, int16_t w, uint16_t color) {
-      struct SegInfo { segDir_t segDir; int16_t xOffset, yOffset; } segInfo;
+      struct segInfo_t { segDir_t segDir; int16_t xOffset, yOffset; } segInfo;
       // Get raw segment x0,y0
       switch(segName) {
-        case SegA : segInfo={SegH, 0,     n           }; break;
-        case SegB : segInfo={SegV, l-n-1, 0           }; break;
-        case SegC : segInfo={SegV, l-n-1, l-w+(w<3 ? 0 : (w%2==0 ? 0 : 1))       }; break;
-        case SegD : segInfo={SegH, 0,     (2*l)-w-n-1 }; break;
-        case SegE : segInfo={SegV, n,     l-w+(w<3 ? 0 : (w%2==0 ? 0 : 1))       }; break;
-        case SegF : segInfo={SegV, n,     0           }; break;
-        case SegG : segInfo={SegH, 0,     l-n-1       }; break;
-        default   : segInfo={SegH, 0,     n           }; break;
+        //case SegA : segInfo = {SegH, 0,     n           }; break;
+        //case SegB : segInfo = {SegV, l-n-1, 0           }; break;
+        //case SegC : segInfo = {SegV, l-n-1, l-w+(w<3 ? 0 : (w%2==0 ? 0 : 1))       }; break;
+        //case SegD : segInfo = {SegH, 0,     (2*l)-w-n-1 }; break;
+        //case SegE : segInfo = {SegV, n,     l-w+(w<3 ? 0 : (w%2==0 ? 0 : 1))       }; break;
+        //case SegF : segInfo = {SegV, n,     0           }; break;
+        //case SegG : segInfo = {SegH, 0,     l-n-1       }; break;
+        //default   : segInfo = {SegH, 0,     n           }; break;
+        case SegA : segInfo.segDir=SegH; segInfo.xOffset=0;     segInfo.yOffset=n;                                break;
+        case SegB : segInfo.segDir=SegV; segInfo.xOffset=l-n-1; segInfo.yOffset=0;                                break;
+        case SegC : segInfo.segDir=SegV; segInfo.xOffset=l-n-1; segInfo.yOffset=l-w+(w<3 ? 0 : (w%2==0 ? 0 : 1)); break;
+        case SegD : segInfo.segDir=SegH; segInfo.xOffset=0;     segInfo.yOffset=(2*l)-w-n-1;                      break;
+        case SegE : segInfo.segDir=SegV; segInfo.xOffset=n;     segInfo.yOffset=l-w+(w<3 ? 0 : (w%2==0 ? 0 : 1)); break;
+        case SegF : segInfo.segDir=SegV; segInfo.xOffset=n;     segInfo.yOffset=0;                                break;
+        case SegG : segInfo.segDir=SegH; segInfo.xOffset=0;     segInfo.yOffset=l-n-1;                            break;
+        default   : segInfo.segDir=SegH; segInfo.xOffset=0;     segInfo.yOffset=n;                                break;
       }
       // Clip segment ends (this needs aesthetic tuning)
       int16_t segClip = 0;
@@ -241,7 +249,8 @@ class TeenySevenSeg {
       int16_t colonOffset = (l/2)-1;
       for(int16_t i=0; i<2; i++) {     //i=segment count
         for(int16_t j=0; j<cw; j++) {   //j=stripe count
-          segInfo={SegV, j, i*(l-cw)};
+          //segInfo = {SegV, j, i*(l-cw)};
+          segInfo.segDir=SegV; segInfo.xOffset=j; segInfo.yOffset=i*(l-cw);
           drawFastVLine(x+segInfo.xOffset, y+segInfo.yOffset+colonOffset, cl, color);
         }
       }
