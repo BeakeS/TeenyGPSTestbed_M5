@@ -44,26 +44,35 @@ ubloxCFGGNSSState_t satcalGNSSConfigState_save;
 // forward declarations
 /********************************************************************/
 char* getGPSISO8601DateTimeStr();
+char* getLatitudeStr(const float latitude);
+char* getLongitudeStr(const float longitude);
 void satCalibration_writeStats();
 void satCalibration_setStatus(const char* status_);
 
 /********************************************************************/
 // Satellite Calibration
 /********************************************************************/
-void satCalibration_enter() {
+bool satCalibration_enter() {
   satCalibration_setStatus("-Initializing GPS");
   satcalStepPeriod = deviceState.GPSCALIBRATIONPERIOD * 60000;
   satcalStartTime = millis();
   if(gpsEnabled && gps.pollGNSSConfig()) {
     satcalGNSSConfigState_save = gps.getGNSSConfigState();
     satcalUbloxModuleType = gps.getUbloxModuleType();
-    satcalStep = SC_START;
-    msg_update("GNSS CAL GPS SETUP");
+    if(sdcard_openGNSSCalibrateFile()) {
+      satcalStep = SC_START;
+      msg_update("GNSS CAL GPS SETUP");
+      return true;
+    } else {
+      satcalStep = SC_END;
+      msg_update("GNSS CAL ERROR_00");
+    }
   } else {
     satcalUbloxModuleType = UBLOX_UNKNOWN_MODULE;
     satcalStep = SC_END;
     msg_update("GNSS CAL ERROR_01");
   }
+  return false;
 }
 
 /********************************************************************/
@@ -74,8 +83,7 @@ void satCalibration_tick() {
   switch(satcalStep) {
     case SC_START:
       if(gps.setGNSSConfigState(satcalGNSSConfigList.GPS) &&
-         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10) &&
-         sdcard_openGNSSCalibrateFile()) {
+         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
         satcalStep = SC_GPS;
         satcalStepStartTime = millis();
         sprintf(_tempStr, "UbloxModule = M%d\n", satcalUbloxModuleType);
@@ -214,12 +222,20 @@ void satCalibration_writeStats() {
   char _tempStr[80];
   // NAVPVT GPS Clock
   if(gps.isPacketValid()) {
-    strcpy(_tempStr, getGPSISO8601DateTimeStr());
-    sprintf(_tempStr, "%s\n", _tempStr);
+    sprintf(_tempStr, "%s\n", getGPSISO8601DateTimeStr());
+    sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
+    if(gps.isLocationValid()) {
+      sprintf(_tempStr, "Location: %s %s\n",
+              getLatitudeStr(gps.getLatitude()),
+              getLongitudeStr(gps.getLongitude()));
+    } else {
+      sprintf(_tempStr, "**  NO GNSS FIX  **\n");
+    }
+    sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
   } else {
     sprintf(_tempStr, "** NO NAVPVT DATA **\n");
+    sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
   }
-  sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
   // NAVSTATUS Data
   ubloxNAVSTATUSInfo_t navstatusInfo;
   gps.getNAVSTATUSInfo(navstatusInfo);
@@ -262,7 +278,7 @@ void satCalibration_writeStats() {
     sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
     sprintf(_tempStr, "Satellites(id/snr):\n");
     sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-    if(navsatInfo.numSvsHealthy >0) {
+    if(navsatInfo.numSvsHealthy > 0) {
       for(uint8_t i=0; i<navsatInfo.numSvsHealthy; i++) {
         sprintf(_tempStr, "%c%02d/%02d ",
                 navsatInfo.svSortList[i].gnssIdType,
@@ -318,28 +334,38 @@ const char* satCalibration_getStatus() {
 
 /********************************************************************/
 uint32_t satCalibration_getTimeRemaining() {
-  uint32_t _timeUsed;
-  uint32_t _timeRemaining;
+  uint32_t _timeUsed = millis() - satcalStepStartTime;
+  uint32_t _timeRemaining = (_timeUsed <= satcalStepPeriod) ?
+                              (satcalStepPeriod - _timeUsed) : 0;
   uint32_t _totalTime;
-  if(satcalStep == SC_GLO) {
-    _timeUsed = millis() - satcalStepStartTime;
-    if(_timeUsed <= satcalStepPeriod) {
-      _timeRemaining = satcalStepPeriod - _timeUsed;
-    } else {
+  bool isUbloxM10Module = satcalUbloxModuleType == UBLOX_M10_MODULE;
+  switch(satcalStep) {
+    case SC_START:
+      _timeRemaining = satcalStepPeriod * (isUbloxM10Module ? 5 : 4);
+      break;
+    case SC_GPS:
+    case SC_GAL_START:
+      _timeRemaining = _timeRemaining + (satcalStepPeriod * (isUbloxM10Module ? 4 : 3));
+      break;
+    case SC_GAL:
+    case SC_BDB1_START:
+      _timeRemaining = _timeRemaining + (satcalStepPeriod * (isUbloxM10Module ? 3 : 2));
+      break;
+    case SC_BDB1:
+    case SC_BDB1C_START:
+      _timeRemaining = _timeRemaining + (satcalStepPeriod * (isUbloxM10Module ? 2 : 1));
+      break;
+    case SC_BDB1C:
+    case SC_GLO_START:
+      _timeRemaining = _timeRemaining + (satcalStepPeriod * (isUbloxM10Module ? 1 : 0));
+      break;
+    case SC_GLO:
+      _timeRemaining = _timeRemaining;
+      break;
+    case SC_END_START:
+    case SC_END:
       _timeRemaining = 0;
-    }
-  } else {
-    if(satcalUbloxModuleType == UBLOX_M10_MODULE) {
-      _totalTime = satcalStepPeriod * 5;
-    } else {
-      _totalTime = satcalStepPeriod * 4;
-    }
-    _timeUsed = millis() - satcalStartTime;
-    if(_timeUsed <= _totalTime) {
-      _timeRemaining = _totalTime - _timeUsed;
-    } else {
-      _timeRemaining = 0;
-    }
+      break;
   }
   return _timeRemaining;
 }

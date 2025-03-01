@@ -33,7 +33,7 @@ bool msg_update(const char* msgStr);
 void display_processingMsg();
 void deviceMode_init();
 void deviceMode_end();
-void satCalibration_enter();
+bool satCalibration_enter();
 void satCalibration_exit();
 const char* satCalibration_getStatus();
 bool gnssReadConfig();
@@ -355,9 +355,9 @@ TeenyMenuSelect selectGPSLogMode(sizeof(selectGPSLogModeOptions)/sizeof(SelectOp
 TeenyMenuItem menuItemGPSLogMode("GPS Logging", deviceState.GPSLOGMODE, selectGPSLogMode);
 //
 // gps scan period
-uint8_t menuGPSCalibrationPeriodMin = 10;
+uint8_t menuGPSCalibrationPeriodMin = 1;
 uint8_t menuGPSCalibrationPeriodMax = 60;
-TeenyMenuItem menuItemGPSCalibrationPeriod("CalibrationPeriod", deviceState.GPSCALIBRATIONPERIOD, menuGPSCalibrationPeriodMin, menuGPSCalibrationPeriodMax);
+TeenyMenuItem menuItemGPSCalibrationPeriod("GNSSCalTime", deviceState.GPSCALIBRATIONPERIOD, menuGPSCalibrationPeriodMin, menuGPSCalibrationPeriodMax);
 //
 // gps factory reset menu
 void menu_cancelGPSFactoryResetCB(); // forward declaration
