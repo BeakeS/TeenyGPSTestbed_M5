@@ -234,11 +234,11 @@ uint32_t gnssCalibrateFileWriteCount;
 /********************************************************************/
 bool sdcard_openGNSSCalibrateFile() {
   if(!sdcardEnabled) return false;
-  if(SD.exists("/GNSSSCAL.txt")) {
-    if(!SD.remove("/GNSSSCAL.txt")) return false;
+  if(SD.exists("/GNSSSCAL.csv")) {
+    if(!SD.remove("/GNSSSCAL.csv")) return false;
   }
   //SdFile::dateTimeCallback(sdDateTimeCB);
-  sdFile = SD.open("/GNSSSCAL.txt", FILE_WRITE);
+  sdFile = SD.open("/GNSSSCAL.csv", FILE_WRITE);
   if(!sdFile) return false;
   gnssCalibrateFileWriteCount = 0;
   return true;

@@ -32,6 +32,7 @@ enum satcal_step_t : uint8_t {
 /********************************************************************/
 // Global Variables
 /********************************************************************/
+uint8_t  satcalErrorCode;
 uint8_t  satcalUbloxModuleType;
 uint8_t  satcalStep;
 uint32_t satcalStepPeriod;
@@ -46,6 +47,7 @@ ubloxCFGGNSSState_t satcalGNSSConfigState_save;
 char* getGPSISO8601DateTimeStr();
 char* getLatitudeStr(const float latitude);
 char* getLongitudeStr(const float longitude);
+void satCalibration_writeHeader();
 void satCalibration_writeStats();
 void satCalibration_setStatus(const char* status_);
 
@@ -53,6 +55,7 @@ void satCalibration_setStatus(const char* status_);
 // Satellite Calibration
 /********************************************************************/
 bool satCalibration_enter() {
+  satcalErrorCode = 0;
   satCalibration_setStatus("-Initializing GPS");
   satcalStepPeriod = deviceState.GPSCALIBRATIONPERIOD * 60000;
   satcalStartTime = millis();
@@ -60,19 +63,22 @@ bool satCalibration_enter() {
     satcalGNSSConfigState_save = gps.getGNSSConfigState();
     satcalUbloxModuleType = gps.getUbloxModuleType();
     if(sdcard_openGNSSCalibrateFile()) {
+      satCalibration_writeHeader();
       satcalStep = SC_START;
       msg_update("GNSS CAL GPS SETUP");
       return true;
     } else {
-      satcalStep = SC_END;
-      msg_update("GNSS CAL ERROR_00");
+      msg_update("GNSS CAL ERROR_02");
       satCalibration_setStatus("-SDCARD ERROR");
+      satcalErrorCode = 2;
+      satcalStep = SC_END;
     }
   } else {
     satcalUbloxModuleType = UBLOX_UNKNOWN_MODULE;
-    satcalStep = SC_END;
     msg_update("GNSS CAL ERROR_01");
-    satCalibration_setStatus("-GPS ERROR");
+    satCalibration_setStatus("-GPS MODULE ERROR");
+    satcalErrorCode = 1;
+    satcalStep = SC_END;
   }
   return false;
 }
@@ -80,7 +86,6 @@ bool satCalibration_enter() {
 /********************************************************************/
 // call in main loop (not ISR safe)
 void satCalibration_tick() {
-  char _tempStr[80];
   if(satcalStep == SC_END) return;
   switch(satcalStep) {
     case SC_START:
@@ -88,18 +93,13 @@ void satCalibration_tick() {
          gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
         satcalStep = SC_GPS;
         satcalStepStartTime = millis();
-        sprintf(_tempStr, "UbloxModule = M%d\n", satcalUbloxModuleType);
-        sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-        sprintf(_tempStr, "Calibration Step Time = %d minutes\n",
-                (satcalStepPeriod / 60000));
-        sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-        sprintf(_tempStr, "**************** GNSS CAL - GPS ****************\n");
-        sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
         msg_update("GNSS CAL - GPS");
         satCalibration_setStatus("-GPS-Only SCAN");
       } else {
-        satCalibration_exit();
-        msg_update("GNSS CAL ERROR_02");
+        msg_update("GNSS CAL ERROR_03");
+        satCalibration_setStatus("-GPS CONFIG ERROR");
+        satcalErrorCode = 3;
+        satcalStep = SC_END_START;
       }
       break;
     case SC_GPS:
@@ -113,15 +113,13 @@ void satCalibration_tick() {
          gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
         satcalStep = SC_GAL;
         satcalStepStartTime = millis();
-        sprintf(_tempStr, "**************** GNSS CAL - Galileo ****************\n");
-        sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
         msg_update("GNSS CAL - GAL");
         satCalibration_setStatus("-Galileo-Only SCAN");
       } else {
-        sprintf(_tempStr, "GNSS CAL ERROR_03\n");
-        sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-        msg_update("GNSS CAL ERROR_03");
-        satCalibration_exit();
+        msg_update("GNSS CAL ERROR_04");
+        satCalibration_setStatus("-GAL CONFIG ERROR");
+        satcalErrorCode = 4;
+        satcalStep = SC_END_START;
       }
       break;
     case SC_GAL:
@@ -135,15 +133,13 @@ void satCalibration_tick() {
          gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
         satcalStep = SC_BDB1;
         satcalStepStartTime = millis();
-        sprintf(_tempStr, "**************** GNSS CAL - BeiDou_B1 ****************\n");
-        sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
         msg_update("GNSS CAL - BDB1");
         satCalibration_setStatus("-BeiDouB1-Only SCAN");
       } else {
-        sprintf(_tempStr, "GNSS CAL ERROR_04\n");
-        sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-        msg_update("GNSS CAL ERROR_04");
-        satCalibration_exit();
+        msg_update("GNSS CAL ERROR_05");
+        satCalibration_setStatus("-BDB1 CONFIG ERROR");
+        satcalErrorCode = 5;
+        satcalStep = SC_END_START;
       }
       break;
     case SC_BDB1:
@@ -161,15 +157,13 @@ void satCalibration_tick() {
          gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
         satcalStep = SC_BDB1C;
         satcalStepStartTime = millis();
-        sprintf(_tempStr, "**************** GNSS CAL - BeiDou_B1C ****************\n");
-        sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
         msg_update("GNSS CAL - BDB1C");
         satCalibration_setStatus("-BeiDouB1C-Only SCAN");
       } else {
-        sprintf(_tempStr, "GNSS CAL ERROR_05\n");
-        sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-        msg_update("GNSS CAL ERROR_05");
-        satCalibration_exit();
+        msg_update("GNSS CAL ERROR_06");
+        satCalibration_setStatus("-BDB1C CONFIG ERROR");
+        satcalErrorCode = 6;
+        satcalStep = SC_END_START;
       }
       break;
     case SC_BDB1C:
@@ -183,15 +177,13 @@ void satCalibration_tick() {
          gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
         satcalStep = SC_GLO;
         satcalStepStartTime = millis();
-        sprintf(_tempStr, "**************** GNSS CAL - GLONASS ****************\n");
-        sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
         msg_update("GNSS CAL - GLO");
         satCalibration_setStatus("-GLONASS-Only SCAN");
       } else {
-        sprintf(_tempStr, "GNSS CAL ERROR_07\n");
-        sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
         msg_update("GNSS CAL ERROR_07");
-        satCalibration_exit();
+        satCalibration_setStatus("-GLO CONFIG ERROR");
+        satcalErrorCode = 7;
+        satcalStep = SC_END_START;
       }
       break;
     case SC_GLO:
@@ -203,125 +195,138 @@ void satCalibration_tick() {
     case SC_END_START:
       if(gps.setGNSSConfigState(satcalGNSSConfigState_save) &&
          gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 0, 0, 0)) {
-        satcalStep = SC_END;
-        sprintf(_tempStr, "**************** GNSS CAL END ****************\n");
-        sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-        sdcard_closeGNSSCalibrateFile();
-        msg_update("GNSS CAL END");
+        if(satcalErrorCode == 0) {
+          satCalibration_setStatus("-SCAN COMPLETE");
+          msg_update("GNSS CAL END");
+        }
       } else {
-        sprintf(_tempStr, "GNSS CAL ERROR_08\n");
-        sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
         msg_update("GNSS CAL ERROR_08");
-        satCalibration_exit();
+        satCalibration_setStatus("-GNSS RESTORE ERROR");
+        satcalErrorCode = 8;
       }
-      satCalibration_setStatus("-SCAN COMPLETE");
+      sdcard_closeGNSSCalibrateFile();
+      satcalStep = SC_END;
       break;
   }
 }
 
 /********************************************************************/
+void satCalibration_exit() {
+  if(satcalStep != SC_END) {
+    if(satcalErrorCode == 0) {
+      msg_update("GNSS CAL ERROR_09");
+      satCalibration_setStatus("-SCAN TERMINATED");
+      satcalErrorCode = 9;
+    }
+    satcalStep = SC_END_START;
+    satCalibration_tick();
+  }
+}
+
+/********************************************************************/
+void satCalibration_writeHeader() {
+  char _tempStr[81];
+  sprintf(_tempStr, "UbloxModule,CalibrationTime,GNSSSystem,GMT,Latitude,Longitude,");
+  sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
+  sprintf(_tempStr, "GPSFixOK,GPSFix,PSMState,CarrSoln,TTFF,");
+  sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
+  sprintf(_tempStr, "SpoofDetState,SpoofIndicated,MultiSpoofInd,");
+  sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
+  sprintf(_tempStr, "TotalSatellites,HealthySignal,EphemerisValid,UsedForNav,Satellites\n");
+  sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
+}
+
+/********************************************************************/
 void satCalibration_writeStats() {
-  char _tempStr[80];
-  // NAVPVT GPS Clock
+  char _tempStr[81];
+  sprintf(_tempStr, "M%d,", satcalUbloxModuleType);
+  sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
+  sprintf(_tempStr, "%d minutes,", (satcalStepPeriod / 60000));
+  sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
+  switch(satcalStep) {
+    case SC_GPS:
+      sprintf(_tempStr, "GPS,");
+      break;
+    case SC_GAL:
+      sprintf(_tempStr, "Galileo,");
+      break;
+    case SC_BDB1:
+      sprintf(_tempStr, "BeiDou_B1,");
+      break;
+    case SC_BDB1C:
+      sprintf(_tempStr, "BeiDou_B1C,");
+      break;
+    case SC_GLO:
+      sprintf(_tempStr, "GLONASS,");
+      break;
+  }
+  sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
+  // NAVPVT Data
   if(gps.isPacketValid()) {
-    sprintf(_tempStr, "%s\n", getGPSISO8601DateTimeStr());
+    if(gps.isDateValid() && gps.isTimeValid()) {
+      rtc_datetime_t dateTime;
+      dateTime.year   = gps.getYear();
+      dateTime.month  = gps.getMonth();
+      dateTime.day    = gps.getDay();
+      dateTime.hour   = gps.getHour();
+      dateTime.minute = gps.getMinute();
+      dateTime.second = gps.getSecond();
+      sprintf(_tempStr, "%s,", rtc.dateTimeToISO8601Str(dateTime));
+    } else {
+      sprintf(_tempStr, ",");
+    }
     sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
     if(gps.isLocationValid()) {
-      sprintf(_tempStr, "Location: %s %s\n",
+      sprintf(_tempStr, "%s,%s,",
               getLatitudeStr(gps.getLatitude()),
               getLongitudeStr(gps.getLongitude()));
     } else {
-      sprintf(_tempStr, "**  NO GNSS FIX  **\n");
+      sprintf(_tempStr, ",,");
     }
-    sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-  } else {
-    sprintf(_tempStr, "** NO NAVPVT DATA **\n");
     sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
   }
   // NAVSTATUS Data
   ubloxNAVSTATUSInfo_t navstatusInfo;
   gps.getNAVSTATUSInfo(navstatusInfo);
   if(navstatusInfo.validPacket) {
-    sprintf(_tempStr, "**** NAVSTAT DATA ****\n");
-    sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-    sprintf(_tempStr, "GPSFixOK=%c\n", navstatusInfo.gpsFixOk ? 'T' : 'F');
-    sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-    sprintf(_tempStr, "GPSFix=%02X\n", navstatusInfo.gpsFix);
-    sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-    sprintf(_tempStr, "PSMState=%02X\n", navstatusInfo.psmState);
-    sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-    sprintf(_tempStr, "CarrSoln=%02d\n", navstatusInfo.carrSoln);
-    sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-    sprintf(_tempStr, "TTFF=%08d\n", navstatusInfo.ttff / 1000);
-    sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-    sprintf(_tempStr, "SpoofDetState=%d\n", navstatusInfo.spoofDetState);
-    sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-    sprintf(_tempStr, "SpoofIndicated=%d\n", navstatusInfo.spoofingIndicated);
-    sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-    sprintf(_tempStr, "MultiSpoofInd=%d\n", navstatusInfo.multipleSpoofingIndications);
-    sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
+    sprintf(_tempStr, "%c,%02X,%02X,%02d,%08d,%d,%d,%d,",
+            navstatusInfo.gpsFixOk ? 'T' : 'F',
+            navstatusInfo.gpsFix,
+            navstatusInfo.psmState,
+            navstatusInfo.carrSoln,
+            navstatusInfo.ttff / 1000,
+            navstatusInfo.spoofDetState,
+            navstatusInfo.spoofingIndicated,
+            navstatusInfo.multipleSpoofingIndications);
   } else {
-    sprintf(_tempStr, "** NO NAVSTAT DATA **\n");
-    sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
+    sprintf(_tempStr, ",,,,,,,,");
   }
+  sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
   // NAVSAT Data
   ubloxNAVSATInfo_t navsatInfo;
   gps.getNAVSATInfo(navsatInfo);
   if(navsatInfo.validPacket) {
-    sprintf(_tempStr, "**** NAVSAT DATA ****\n");
-    sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-    sprintf(_tempStr, "Total=%d/%d\n", navsatInfo.numSvs, navsatInfo.numSvsReceived);
-    sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-    sprintf(_tempStr, "HealthySignal=%d\n", navsatInfo.numSvsHealthy);
-    sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-    sprintf(_tempStr, "EphemerisValid=%d\n", navsatInfo.numSvsEphValid);
-    sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-    sprintf(_tempStr, "UsedForNav=%d\n", navsatInfo.numSvsUsed);
-    sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-    sprintf(_tempStr, "Satellites(id/snr):\n");
+    sprintf(_tempStr, "%d,%d,%d,%d",
+            navsatInfo.numSvs,
+            navsatInfo.numSvsHealthy,
+            navsatInfo.numSvsEphValid,
+            navsatInfo.numSvsUsed);
     sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
     if(navsatInfo.numSvsHealthy > 0) {
       for(uint8_t i=0; i<navsatInfo.numSvsHealthy; i++) {
-        sprintf(_tempStr, "%c%02d/%02d ",
+        sprintf(_tempStr, ",%c%02d/%02d",
                 navsatInfo.svSortList[i].gnssIdType,
                 navsatInfo.svSortList[i].svId,
                 navsatInfo.svSortList[i].cno);
         sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-        if(((i % 6) == 5) || i == (navsatInfo.numSvsHealthy-1)) {
-          sprintf(_tempStr, "\n");
-          sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-        }
       }
-    } else {
-      sprintf(_tempStr, "** NO HEALTHY SATELLITES **\n");
-      sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
     }
   } else {
-    sprintf(_tempStr, "** NO NAVSAT DATA **\n");
+    sprintf(_tempStr, ",,,");
     sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
   }
-}
-
-/********************************************************************/
-void satCalibration_exit() {
-  char _tempStr[80];
-  if(satcalStep != SC_END) {
-    satcalStep = SC_END;
-    if(gps.setGNSSConfigState(satcalGNSSConfigState_save) &&
-       gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 0, 0, 0)) {
-      sprintf(_tempStr, "**************** GNSS CAL EARLY EXIT ****************\n");
-      sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-      sdcard_closeGNSSCalibrateFile();
-      msg_update("GNSS CAL END");
-      satCalibration_setStatus("-SCAN TERMINATED");
-    } else {
-      sprintf(_tempStr, "**************** GNSS CAL EARLY EXIT ERROR ****************\n");
-      sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-      sdcard_closeGNSSCalibrateFile();
-      msg_update("GNSS CAL ERROR_02");
-      satCalibration_setStatus("-SCAN ERROR");
-    }
-  }
+  sprintf(_tempStr, "\n");
+  sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
 }
 
 /********************************************************************/
