@@ -15,7 +15,7 @@ satcalGNSSConfigList_t satcalGNSSConfigList;
 // Satellite Calibration Steps
 /********************************************************************/
 enum satcal_step_t : uint8_t {
-  SC_START = 0,
+  SC_GPS_START = 0,
   SC_GPS,
   SC_GAL_START,
   SC_GAL,
@@ -25,6 +25,10 @@ enum satcal_step_t : uint8_t {
   SC_BDB1C,
   SC_GLO_START,
   SC_GLO,
+  SC_FACTORY_START,
+  SC_FACTORY,
+  SC_CURRENT_START,
+  SC_CURRENT,
   SC_END_START,
   SC_END
 };
@@ -34,12 +38,15 @@ enum satcal_step_t : uint8_t {
 /********************************************************************/
 uint8_t  satcalErrorCode;
 uint8_t  satcalUbloxModuleType;
+bool     satcalIsUbloxM10Module;
 uint8_t  satcalStep;
 uint32_t satcalStepPeriod;
 uint32_t satcalStartTime;
 uint32_t satcalStepStartTime;
 const char* satcalStatusStr;
-ubloxCFGGNSSState_t satcalGNSSConfigState_save;
+ubloxCFGGNSSState_t satcalGNSSConfigState_config;
+ubloxCFGGNSSState_t satcalGNSSConfigState_factory;
+bool     satcalIsCurrentConfigStateUnique;
 
 /********************************************************************/
 // forward declarations
@@ -58,28 +65,54 @@ bool satCalibration_enter() {
   satcalErrorCode = 0;
   satCalibration_setStatus("-Initializing GPS");
   satcalStepPeriod = deviceState.GPSCALIBRATIONPERIOD * 60000;
+  // satcalStepPeriod = 10000; // for testing step sequence
   satcalStartTime = millis();
   if(gpsEnabled && gps.pollGNSSConfig()) {
-    satcalGNSSConfigState_save = gps.getGNSSConfigState();
     satcalUbloxModuleType = gps.getUbloxModuleType();
-    if(sdcard_openGNSSCalibrateFile()) {
-      satCalibration_writeHeader();
-      satcalStep = SC_START;
-      msg_update("GNSS CAL GPS SETUP");
-      return true;
+    satcalIsUbloxM10Module = satcalUbloxModuleType == UBLOX_M10_MODULE;
+    satcalGNSSConfigState_config = gps.getGNSSConfigState();
+    if(gps.factoryReset() &&
+       gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 0, 0, 0) &&
+       gps.pollGNSSConfig()) {
+      satcalGNSSConfigState_factory = gps.getGNSSConfigState();
+      satcalIsCurrentConfigStateUnique = 
+        (satcalGNSSConfigState_factory.GPS        != satcalGNSSConfigState_config.GPS) ||
+        (satcalGNSSConfigState_factory.GPS_L1CA   != satcalGNSSConfigState_config.GPS_L1CA) ||
+        (satcalGNSSConfigState_factory.SBAS       != satcalGNSSConfigState_config.SBAS) ||
+        (satcalGNSSConfigState_factory.SBAS_L1CA  != satcalGNSSConfigState_config.SBAS_L1CA) ||
+        (satcalGNSSConfigState_factory.Galileo    != satcalGNSSConfigState_config.Galileo) ||
+        (satcalGNSSConfigState_factory.Galileo_E1 != satcalGNSSConfigState_config.Galileo_E1) ||
+        (satcalGNSSConfigState_factory.BeiDou     != satcalGNSSConfigState_config.BeiDou) ||
+        (satcalGNSSConfigState_factory.BeiDou_B1  != satcalGNSSConfigState_config.BeiDou_B1) ||
+        (satcalGNSSConfigState_factory.BeiDou_B1C != satcalGNSSConfigState_config.BeiDou_B1C) ||
+        (satcalGNSSConfigState_factory.IMES       != satcalGNSSConfigState_config.IMES) ||
+        (satcalGNSSConfigState_factory.QZSS       != satcalGNSSConfigState_config.QZSS) ||
+        (satcalGNSSConfigState_factory.QZSS_L1CA  != satcalGNSSConfigState_config.QZSS_L1CA) ||
+        (satcalGNSSConfigState_factory.QZSS_L1S   != satcalGNSSConfigState_config.QZSS_L1S) ||
+        (satcalGNSSConfigState_factory.GLONASS    != satcalGNSSConfigState_config.GLONASS) ||
+        (satcalGNSSConfigState_factory.GLONASS_L1 != satcalGNSSConfigState_config.GLONASS_L1);
+      if(sdcard_openGNSSCalibrateFile()) {
+        satCalibration_writeHeader();
+        satcalStep = SC_GPS_START;
+        msg_update("GNSS CAL GPS SETUP");
+        return true;
+      } else {
+        msg_update("GNSS CAL ERROR_03");
+        satCalibration_setStatus("-SDCARD ERROR");
+        satcalErrorCode = 3;
+      }
     } else {
       msg_update("GNSS CAL ERROR_02");
-      satCalibration_setStatus("-SDCARD ERROR");
+      satCalibration_setStatus("-GPS RESET ERROR");
       satcalErrorCode = 2;
-      satcalStep = SC_END;
     }
   } else {
     satcalUbloxModuleType = UBLOX_UNKNOWN_MODULE;
     msg_update("GNSS CAL ERROR_01");
     satCalibration_setStatus("-GPS MODULE ERROR");
     satcalErrorCode = 1;
-    satcalStep = SC_END;
   }
+  satcalStep = SC_END;
   return false;
 }
 
@@ -88,7 +121,7 @@ bool satCalibration_enter() {
 void satCalibration_tick() {
   if(satcalStep == SC_END) return;
   switch(satcalStep) {
-    case SC_START:
+    case SC_GPS_START:
       if(gps.setGNSSConfigState(satcalGNSSConfigList.GPS) &&
          gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
         satcalStep = SC_GPS;
@@ -96,9 +129,9 @@ void satCalibration_tick() {
         msg_update("GNSS CAL - GPS");
         satCalibration_setStatus("-GPS-Only SCAN");
       } else {
-        msg_update("GNSS CAL ERROR_03");
+        msg_update("GNSS CAL ERROR_04");
         satCalibration_setStatus("-GPS CONFIG ERROR");
-        satcalErrorCode = 3;
+        satcalErrorCode = 4;
         satcalStep = SC_END_START;
       }
       break;
@@ -116,9 +149,9 @@ void satCalibration_tick() {
         msg_update("GNSS CAL - GAL");
         satCalibration_setStatus("-Galileo-Only SCAN");
       } else {
-        msg_update("GNSS CAL ERROR_04");
+        msg_update("GNSS CAL ERROR_05");
         satCalibration_setStatus("-GAL CONFIG ERROR");
-        satcalErrorCode = 4;
+        satcalErrorCode = 5;
         satcalStep = SC_END_START;
       }
       break;
@@ -136,9 +169,9 @@ void satCalibration_tick() {
         msg_update("GNSS CAL - BDB1");
         satCalibration_setStatus("-BeiDouB1-Only SCAN");
       } else {
-        msg_update("GNSS CAL ERROR_05");
+        msg_update("GNSS CAL ERROR_06");
         satCalibration_setStatus("-BDB1 CONFIG ERROR");
-        satcalErrorCode = 5;
+        satcalErrorCode = 6;
         satcalStep = SC_END_START;
       }
       break;
@@ -160,9 +193,9 @@ void satCalibration_tick() {
         msg_update("GNSS CAL - BDB1C");
         satCalibration_setStatus("-BeiDouB1C-Only SCAN");
       } else {
-        msg_update("GNSS CAL ERROR_06");
+        msg_update("GNSS CAL ERROR_07");
         satCalibration_setStatus("-BDB1C CONFIG ERROR");
-        satcalErrorCode = 6;
+        satcalErrorCode = 7;
         satcalStep = SC_END_START;
       }
       break;
@@ -180,29 +213,76 @@ void satCalibration_tick() {
         msg_update("GNSS CAL - GLO");
         satCalibration_setStatus("-GLONASS-Only SCAN");
       } else {
-        msg_update("GNSS CAL ERROR_07");
+        msg_update("GNSS CAL ERROR_08");
         satCalibration_setStatus("-GLO CONFIG ERROR");
-        satcalErrorCode = 7;
+        satcalErrorCode = 8;
         satcalStep = SC_END_START;
       }
       break;
     case SC_GLO:
       if((millis() - satcalStepStartTime) >= satcalStepPeriod) {
         satCalibration_writeStats();
+        satcalStep = SC_FACTORY_START;
+      }
+      break;
+    case SC_FACTORY_START:
+      if(gps.setGNSSConfigState(satcalGNSSConfigState_factory) &&
+         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
+        satcalGNSSConfigState_factory = gps.getGNSSConfigState();
+        satcalStep = SC_FACTORY;
+        satcalStepStartTime = millis();
+        msg_update("GNSS CAL - FACTORY");
+        satCalibration_setStatus("-FACTORY-DFLT SCAN");
+      } else {
+        msg_update("GNSS CAL ERROR_09");
+        satCalibration_setStatus("-FACTORY CFG ERROR");
+        satcalErrorCode = 9;
+        satcalStep = SC_END_START;
+      }
+      break;
+    case SC_FACTORY:
+      if((millis() - satcalStepStartTime) >= satcalStepPeriod) {
+        satCalibration_writeStats();
+        if(satcalIsCurrentConfigStateUnique) {
+          satcalStep = SC_CURRENT_START;
+        } else {
+          satcalStep = SC_CURRENT;
+          satCalibration_writeStats();
+          satcalStep = SC_END_START;
+        }
+      }
+      break;
+    case SC_CURRENT_START:
+      if(gps.setGNSSConfigState(satcalGNSSConfigState_config) &&
+         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
+        satcalStep = SC_CURRENT;
+        satcalStepStartTime = millis();
+        msg_update("GNSS CAL - CURRENT");
+        satCalibration_setStatus("-CURRENT-CFG SCAN");
+      } else {
+        msg_update("GNSS CAL ERROR_10");
+        satCalibration_setStatus("-CURRENT CFG ERROR");
+        satcalErrorCode = 10;
+        satcalStep = SC_END_START;
+      }
+      break;
+    case SC_CURRENT:
+      if((millis() - satcalStepStartTime) >= satcalStepPeriod) {
+        satCalibration_writeStats();
         satcalStep = SC_END_START;
       }
       break;
     case SC_END_START:
-      if(gps.setGNSSConfigState(satcalGNSSConfigState_save) &&
+      if(gps.setGNSSConfigState(satcalGNSSConfigState_config) &&
          gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 0, 0, 0)) {
         if(satcalErrorCode == 0) {
           satCalibration_setStatus("-SCAN COMPLETE");
           msg_update("GNSS CAL END");
         }
       } else {
-        msg_update("GNSS CAL ERROR_08");
+        msg_update("GNSS CAL ERROR_11");
         satCalibration_setStatus("-GNSS RESTORE ERROR");
-        satcalErrorCode = 8;
+        satcalErrorCode = 11;
       }
       sdcard_closeGNSSCalibrateFile();
       satcalStep = SC_END;
@@ -214,9 +294,9 @@ void satCalibration_tick() {
 void satCalibration_exit() {
   if(satcalStep != SC_END) {
     if(satcalErrorCode == 0) {
-      msg_update("GNSS CAL ERROR_09");
+      msg_update("GNSS CAL ERROR_99");
       satCalibration_setStatus("-SCAN TERMINATED");
-      satcalErrorCode = 9;
+      satcalErrorCode = 99;
     }
     satcalStep = SC_END_START;
     satCalibration_tick();
@@ -258,6 +338,12 @@ void satCalibration_writeStats() {
       break;
     case SC_GLO:
       sprintf(_tempStr, "GLONASS,");
+      break;
+    case SC_FACTORY:
+      sprintf(_tempStr, "FACTORY,");
+      break;
+    case SC_CURRENT:
+      sprintf(_tempStr, "CURRENT,");
       break;
   }
   sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
@@ -345,28 +431,47 @@ uint32_t satCalibration_getTimeRemaining() {
   uint32_t _timeRemaining = (_timeUsed <= satcalStepPeriod) ?
                               (satcalStepPeriod - _timeUsed) : 0;
   uint32_t _totalTime;
-  bool isUbloxM10Module = satcalUbloxModuleType == UBLOX_M10_MODULE;
+  uint32_t _remainingStepCount;
   switch(satcalStep) {
-    case SC_START:
-      _timeRemaining = satcalStepPeriod * (isUbloxM10Module ? 5 : 4);
+    case SC_GPS_START:
+      _remainingStepCount = 5 + (satcalIsUbloxM10Module ? 1 : 0) +
+                                (satcalIsCurrentConfigStateUnique ? 1 : 0);
+      _timeRemaining = satcalStepPeriod * _remainingStepCount;
       break;
     case SC_GPS:
     case SC_GAL_START:
-      _timeRemaining = _timeRemaining + (satcalStepPeriod * (isUbloxM10Module ? 4 : 3));
+      _remainingStepCount = 4 + (satcalIsUbloxM10Module ? 1 : 0) +
+                                (satcalIsCurrentConfigStateUnique ? 1 : 0);
+      _timeRemaining = _timeRemaining + (satcalStepPeriod * _remainingStepCount);
       break;
     case SC_GAL:
     case SC_BDB1_START:
-      _timeRemaining = _timeRemaining + (satcalStepPeriod * (isUbloxM10Module ? 3 : 2));
+      _remainingStepCount = 3 + (satcalIsUbloxM10Module ? 1 : 0) +
+                                (satcalIsCurrentConfigStateUnique ? 1 : 0);
+      _timeRemaining = _timeRemaining + (satcalStepPeriod * _remainingStepCount);
       break;
     case SC_BDB1:
     case SC_BDB1C_START:
-      _timeRemaining = _timeRemaining + (satcalStepPeriod * (isUbloxM10Module ? 2 : 1));
+      _remainingStepCount = 2 + (satcalIsUbloxM10Module ? 1 : 0) +
+                                (satcalIsCurrentConfigStateUnique ? 1 : 0);
+      _timeRemaining = _timeRemaining + (satcalStepPeriod * _remainingStepCount);
       break;
     case SC_BDB1C:
     case SC_GLO_START:
-      _timeRemaining = _timeRemaining + (satcalStepPeriod * (isUbloxM10Module ? 1 : 0));
+      _remainingStepCount = 2 + (satcalIsCurrentConfigStateUnique ? 1 : 0);
+      _timeRemaining = _timeRemaining + (satcalStepPeriod * _remainingStepCount);
       break;
     case SC_GLO:
+    case SC_FACTORY_START:
+      _remainingStepCount = 1 + (satcalIsCurrentConfigStateUnique ? 1 : 0);
+      _timeRemaining = _timeRemaining + (satcalStepPeriod * _remainingStepCount);
+      break;
+    case SC_FACTORY:
+    case SC_CURRENT_START:
+      _remainingStepCount = 0 + (satcalIsCurrentConfigStateUnique ? 1 : 0);
+      _timeRemaining = _timeRemaining + (satcalStepPeriod * _remainingStepCount);
+      break;
+    case SC_CURRENT:
       _timeRemaining = _timeRemaining;
       break;
     case SC_END_START:

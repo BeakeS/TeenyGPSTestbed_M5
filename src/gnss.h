@@ -69,7 +69,7 @@ bool gnssConfigurator(uint8_t mode, const char* selectGNSSName) {
   } else if(strcmp(selectGNSSName, "BeiDou_B1C") == 0) {
     gnssId = 3;
     gnssIdType = 'B';
-    strcpy(gnssSignalName, "_B1C");
+    strcpy(gnssSignalName, "B1C");
     gnssEnable = &gnssState.BeiDou_B1C;
   } else if(strcmp(selectGNSSName, "IMES") == 0) {
     gnssId = 4;
