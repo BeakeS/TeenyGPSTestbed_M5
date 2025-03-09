@@ -43,6 +43,8 @@ uint8_t  satcalStep;
 uint32_t satcalStepPeriod;
 uint32_t satcalStartTime;
 uint32_t satcalStepStartTime;
+uint32_t satcalTTF2DF;
+uint32_t satcalTTF3DF;
 const char* satcalStatusStr;
 ubloxCFGGNSSState_t satcalGNSSConfigState_config;
 ubloxCFGGNSSState_t satcalGNSSConfigState_factory;
@@ -54,6 +56,7 @@ bool     satcalIsCurrentConfigStateUnique;
 char* getGPSISO8601DateTimeStr();
 char* getLatitudeStr(const float latitude);
 char* getLongitudeStr(const float longitude);
+void satcalCheckForFix();
 void satCalibration_writeHeader();
 void satCalibration_writeStats();
 void satCalibration_setStatus(const char* status_);
@@ -126,6 +129,8 @@ void satCalibration_tick() {
          gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
         satcalStep = SC_GPS;
         satcalStepStartTime = millis();
+        satcalTTF2DF = 0;
+        satcalTTF3DF = 0;
         msg_update("GNSS CAL - GPS");
         satCalibration_setStatus("-GPS-Only SCAN");
       } else {
@@ -136,7 +141,9 @@ void satCalibration_tick() {
       }
       break;
     case SC_GPS:
-      if((millis() - satcalStepStartTime) >= satcalStepPeriod) {
+      if((millis() - satcalStepStartTime) < satcalStepPeriod) {
+        satcalCheckForFix();
+      } else {
         satCalibration_writeStats();
         satcalStep = SC_GAL_START;
       }
@@ -146,6 +153,8 @@ void satCalibration_tick() {
          gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
         satcalStep = SC_GAL;
         satcalStepStartTime = millis();
+        satcalTTF2DF = 0;
+        satcalTTF3DF = 0;
         msg_update("GNSS CAL - GAL");
         satCalibration_setStatus("-Galileo-Only SCAN");
       } else {
@@ -156,7 +165,9 @@ void satCalibration_tick() {
       }
       break;
     case SC_GAL:
-      if((millis() - satcalStepStartTime) >= satcalStepPeriod) {
+      if((millis() - satcalStepStartTime) < satcalStepPeriod) {
+        satcalCheckForFix();
+      } else {
         satCalibration_writeStats();
         satcalStep = SC_BDB1_START;
       }
@@ -166,6 +177,8 @@ void satCalibration_tick() {
          gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
         satcalStep = SC_BDB1;
         satcalStepStartTime = millis();
+        satcalTTF2DF = 0;
+        satcalTTF3DF = 0;
         msg_update("GNSS CAL - BDB1");
         satCalibration_setStatus("-BeiDouB1-Only SCAN");
       } else {
@@ -176,7 +189,9 @@ void satCalibration_tick() {
       }
       break;
     case SC_BDB1:
-      if((millis() - satcalStepStartTime) >= satcalStepPeriod) {
+      if((millis() - satcalStepStartTime) < satcalStepPeriod) {
+        satcalCheckForFix();
+      } else {
         satCalibration_writeStats();
         if(satcalUbloxModuleType == UBLOX_M10_MODULE) {
           satcalStep = SC_BDB1C_START;
@@ -190,6 +205,8 @@ void satCalibration_tick() {
          gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
         satcalStep = SC_BDB1C;
         satcalStepStartTime = millis();
+        satcalTTF2DF = 0;
+        satcalTTF3DF = 0;
         msg_update("GNSS CAL - BDB1C");
         satCalibration_setStatus("-BeiDouB1C-Only SCAN");
       } else {
@@ -200,7 +217,9 @@ void satCalibration_tick() {
       }
       break;
     case SC_BDB1C:
-      if((millis() - satcalStepStartTime) >= satcalStepPeriod) {
+      if((millis() - satcalStepStartTime) < satcalStepPeriod) {
+        satcalCheckForFix();
+      } else {
         satCalibration_writeStats();
         satcalStep = SC_GLO_START;
       }
@@ -210,6 +229,8 @@ void satCalibration_tick() {
          gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
         satcalStep = SC_GLO;
         satcalStepStartTime = millis();
+        satcalTTF2DF = 0;
+        satcalTTF3DF = 0;
         msg_update("GNSS CAL - GLO");
         satCalibration_setStatus("-GLONASS-Only SCAN");
       } else {
@@ -220,7 +241,9 @@ void satCalibration_tick() {
       }
       break;
     case SC_GLO:
-      if((millis() - satcalStepStartTime) >= satcalStepPeriod) {
+      if((millis() - satcalStepStartTime) < satcalStepPeriod) {
+        satcalCheckForFix();
+      } else {
         satCalibration_writeStats();
         satcalStep = SC_FACTORY_START;
       }
@@ -231,6 +254,8 @@ void satCalibration_tick() {
         satcalGNSSConfigState_factory = gps.getGNSSConfigState();
         satcalStep = SC_FACTORY;
         satcalStepStartTime = millis();
+        satcalTTF2DF = 0;
+        satcalTTF3DF = 0;
         msg_update("GNSS CAL - FACTORY");
         satCalibration_setStatus("-FACTORY-DFLT SCAN");
       } else {
@@ -241,7 +266,9 @@ void satCalibration_tick() {
       }
       break;
     case SC_FACTORY:
-      if((millis() - satcalStepStartTime) >= satcalStepPeriod) {
+      if((millis() - satcalStepStartTime) < satcalStepPeriod) {
+        satcalCheckForFix();
+      } else {
         satCalibration_writeStats();
         if(satcalIsCurrentConfigStateUnique) {
           satcalStep = SC_CURRENT_START;
@@ -257,6 +284,8 @@ void satCalibration_tick() {
          gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
         satcalStep = SC_CURRENT;
         satcalStepStartTime = millis();
+        satcalTTF2DF = 0;
+        satcalTTF3DF = 0;
         msg_update("GNSS CAL - CURRENT");
         satCalibration_setStatus("-CURRENT-CFG SCAN");
       } else {
@@ -267,7 +296,9 @@ void satCalibration_tick() {
       }
       break;
     case SC_CURRENT:
-      if((millis() - satcalStepStartTime) >= satcalStepPeriod) {
+      if((millis() - satcalStepStartTime) < satcalStepPeriod) {
+        satcalCheckForFix();
+      } else {
         satCalibration_writeStats();
         satcalStep = SC_END_START;
       }
@@ -294,12 +325,28 @@ void satCalibration_tick() {
 void satCalibration_exit() {
   if(satcalStep != SC_END) {
     if(satcalErrorCode == 0) {
-      msg_update("GNSS CAL ERROR_99");
+      msg_update("GNSS CAL TERMINATED");
       satCalibration_setStatus("-SCAN TERMINATED");
-      satcalErrorCode = 99;
     }
     satcalStep = SC_END_START;
     satCalibration_tick();
+  }
+}
+
+/********************************************************************/
+void satcalCheckForFix() {
+  // don't use last step's NAVSTATUS data
+  if((millis() - satcalStepStartTime) < 2000) return;
+  if((satcalTTF2DF != 0) && (satcalTTF3DF !=0)) return;
+  ubloxNAVSTATUSInfo_t navstatusInfo;
+  gps.getNAVSTATUSInfo(navstatusInfo);
+  if(!navstatusInfo.validPacket) return;
+  if((satcalTTF2DF == 0) &&
+     ((navstatusInfo.gpsFix == 2) || (navstatusInfo.gpsFix == 3))) {
+    satcalTTF2DF = millis() - satcalStepStartTime;
+  }
+  if((satcalTTF3DF == 0) && (navstatusInfo.gpsFix == 3)) {
+    satcalTTF3DF = millis() - satcalStepStartTime;
   }
 }
 
@@ -308,7 +355,7 @@ void satCalibration_writeHeader() {
   char _tempStr[81];
   sprintf(_tempStr, "UbloxModule,CalibrationTime,GNSSSystem,GMT,Latitude,Longitude,");
   sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-  sprintf(_tempStr, "GPSFixOK,GPSFix,PSMState,CarrSoln,TTFF,");
+  sprintf(_tempStr, "GPSFixOK,GPSFix,TTFF,TTF2DF,TTF3DF,PSMState,CarrSoln,");
   sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
   sprintf(_tempStr, "SpoofDetState,SpoofIndicated,MultiSpoofInd,");
   sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
@@ -375,17 +422,22 @@ void satCalibration_writeStats() {
   ubloxNAVSTATUSInfo_t navstatusInfo;
   gps.getNAVSTATUSInfo(navstatusInfo);
   if(navstatusInfo.validPacket) {
-    sprintf(_tempStr, "%c,%02X,%02X,%02d,%08d,%d,%d,%d,",
+    sprintf(_tempStr, "%c,%XD,%d,%d,%d,%X,%d,%d,%d,%d,",
             navstatusInfo.gpsFixOk ? 'T' : 'F',
             navstatusInfo.gpsFix,
+            ((navstatusInfo.ttff == 0) ? 0 :
+               ((navstatusInfo.ttff > 1000) ? (navstatusInfo.ttff / 1000) : 1)),
+            ((satcalTTF2DF == 0) ? 0 :
+               ((satcalTTF2DF > 1000) ? (satcalTTF2DF / 1000) : 1)),
+            ((satcalTTF3DF == 0) ? 0 :
+               ((satcalTTF3DF > 1000) ? (satcalTTF3DF / 1000) : 1)),
             navstatusInfo.psmState,
             navstatusInfo.carrSoln,
-            navstatusInfo.ttff / 1000,
             navstatusInfo.spoofDetState,
             navstatusInfo.spoofingIndicated,
             navstatusInfo.multipleSpoofingIndications);
   } else {
-    sprintf(_tempStr, ",,,,,,,,");
+    sprintf(_tempStr, ",,,,,,,,,,");
   }
   sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
   // NAVSAT Data

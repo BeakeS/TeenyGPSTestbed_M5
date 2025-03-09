@@ -357,7 +357,7 @@ void loop() {
       } else if(gps.getNAVSAT()) {
         displayRefresh = true;
       }
-      satCalibration_tick();
+      if(_clockTick_1sec) satCalibration_tick();
       break;
     case DM_GPSSCFG:
       break;
