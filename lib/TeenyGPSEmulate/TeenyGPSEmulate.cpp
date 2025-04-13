@@ -23,7 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 /********************************************************************/
 //#include "TeenyGPSEmulate.navPvtLoop.h"
 //#include "TeenyGPSEmulate.navPvtSatLoop.h"
-#include "TeenyGPSEmulate.navPvtStatusSatLoop.h"
+#include "TeenyGPSEmulate.navPvtSatStatusLoop.h"
 
 /********************************************************************/
 TeenyGPSEmulate::TeenyGPSEmulate() { }
@@ -34,17 +34,26 @@ TeenyGPSEmulate::~TeenyGPSEmulate() { }
 bool TeenyGPSEmulate::init(HardwareSerial &serialPort_,
                            uint32_t baudRate_,
                            tgpse_ubx_module_type_t ubxModuleType_,
-                           uint8_t (*fetch)()) {
+                           bool ubxPktLoopEnable_,
+                           bool (*fetch)(uint8_t* value)) {
+  ubxFetch = fetch;
+  return restart(serialPort_, baudRate_, ubxModuleType_, ubxPktLoopEnable_);
+}
+
+/********************************************************************/
+bool TeenyGPSEmulate::restart(HardwareSerial &serialPort_,
+                              uint32_t baudRate_,
+                              tgpse_ubx_module_type_t ubxModuleType_,
+                              bool ubxPktLoopEnable_) {
   reset();
   serialPort = &serialPort_;
   emulatorSettings.baudRate = baudRate_;
   ubxModuleType = ubxModuleType_;
-  ubxFetch = fetch;
+  ubxPktLoopEnable = ubxPktLoopEnable_;
   if((ubxModuleType != TGPSE_UBX_M8_MODULE) &&
      (ubxModuleType != TGPSE_UBX_M10_MODULE)) {
     return false;
   }
-  //serialPort->begin(emulatorSettings.baudRate);
 #ifdef CONFIG_IDF_TARGET_ESP32S3 // Core S3SE fix using the correct serial pins
   serialPort->begin(emulatorSettings.baudRate, SERIAL_8N1, RXD2, TXD2);
 #else
@@ -55,19 +64,27 @@ bool TeenyGPSEmulate::init(HardwareSerial &serialPort_,
 
 /********************************************************************/
 bool TeenyGPSEmulate::reset() {
-  emulatorSettings = emulatorSettings_default;
+  emulatorSettings = emulatorSettings_default; // resets auto*Rates
   incomingPacket.validPacket = false;
   receivedPacket.validPacket = false;
   responsePacket.validPacket = false;
   acknowledgePacket.validPacket = false;
-  unknownPacket.validPacket = false;
+  unsupportedPacket.validPacket = false;
   lostRxPacketCount = 0;
+  processedRxPacketCount = 0;
+  unsupportedRxPacketCount = 0;
   requestNAVPVTPacket = false;
   lostNAVPVTRequestCount = 0;
-  requestNAVSTATUSPacket = false;
-  lostNAVSTATUSRequestCount = 0;
+  lostNAVPVTPacketCount = 0;
+  sentNAVPVTPacketCount = 0;
   requestNAVSATPacket = false;
   lostNAVSATRequestCount = 0;
+  lostNAVSATPacketCount = 0;
+  sentNAVSATPacketCount = 0;
+  requestNAVSTATUSPacket = false;
+  lostNAVSTATUSRequestCount = 0;
+  lostNAVSTATUSPacketCount = 0;
+  sentNAVSTATUSPacketCount = 0;
   ubxLoopPacket.validPacket = false;
   ubxLoopPacketIndex = 0;
   setEmuColdOutputPackets();
@@ -208,7 +225,7 @@ void TeenyGPSEmulate::processIncomingPacket() {
         if((requestedBaudRate == 9600) ||
            (requestedBaudRate == 38400) ||
            (requestedBaudRate == 115200)) {
-          init(*serialPort, requestedBaudRate, ubxModuleType);
+          restart(*serialPort, requestedBaudRate, ubxModuleType, ubxPktLoopEnable);
           receivedPacket.validPacket = false;
           return;
         } else {
@@ -288,53 +305,10 @@ void TeenyGPSEmulate::processIncomingPacket() {
       if(emulatorSettings.autoNAVPVTRate!=0) {
         if(requestNAVPVTPacket) {
           lostNAVPVTRequestCount += (lostNAVPVTRequestCount < 99) ? 1 : 0;
-        } else {
-          requestNAVPVTPacket = true;
         }
+        requestNAVPVTPacket = true;
       }
       // *** DON'T ACK UBX-NAV-PVT REQUESTS ***
-
-    // Poll CFG-MSG (autoNAVSTATUSRate)
-    } else if((ubxModuleType == TGPSE_UBX_M8_MODULE) &&
-              (receivedPacket.messageClass == TGPSE_UBX_CLASS_CFG) &&
-              (receivedPacket.messageID == TGPSE_UBX_CFG_MSG) &&
-              (receivedPacket.payloadLength == 2) &&
-              (receivedPacket.payload[0] == TGPSE_UBX_CLASS_NAV) &&
-              (receivedPacket.payload[1] == TGPSE_UBX_NAV_STATUS)) {
-      // Return autoNAVSTATUSRate setting
-      responsePacket.messageClass = receivedPacket.messageClass;
-      responsePacket.messageID = receivedPacket.messageID;
-      responsePacket.payloadLength = 3;
-      responsePacket.payload[0] = TGPSE_UBX_CLASS_NAV;
-      responsePacket.payload[1] = TGPSE_UBX_NAV_STATUS;
-      responsePacket.payload[2] = emulatorSettings.autoNAVSTATUSRate;
-      calcChecksum(&responsePacket);
-      responsePacket.validPacket = true;
-      buildAcknowledgePacket(receivedPacket.messageClass, receivedPacket.messageID, true);
-
-    // Set CFG-MSG (autoNAVSTATUSRate)
-    } else if((ubxModuleType == TGPSE_UBX_M8_MODULE) &&
-              (receivedPacket.messageClass == TGPSE_UBX_CLASS_CFG) &&
-              (receivedPacket.messageID == TGPSE_UBX_CFG_MSG) &&
-              (receivedPacket.payloadLength == 3) &&
-              (receivedPacket.payload[0] == TGPSE_UBX_CLASS_NAV) &&
-              (receivedPacket.payload[1] == TGPSE_UBX_NAV_STATUS)) {
-      emulatorSettings.autoNAVSTATUSRate = receivedPacket.payload[2];
-      buildAcknowledgePacket(receivedPacket.messageClass, receivedPacket.messageID, true);
-      
-    // Poll NAV-STATUS (Navigation status - manual polling mode)
-    } else if((receivedPacket.messageClass == TGPSE_UBX_CLASS_NAV) &&
-              (receivedPacket.messageID == TGPSE_UBX_NAV_STATUS) &&
-              (receivedPacket.payloadLength == 0)) {
-      // Request NAV-STATUS packet if not in autoNAVSTATUS mode
-      if(emulatorSettings.autoNAVSTATUSRate!=0) {
-        if(requestNAVSTATUSPacket) {
-          lostNAVSTATUSRequestCount += (lostNAVSTATUSRequestCount < 99) ? 1 : 0;
-        } else {
-          requestNAVSTATUSPacket = true;
-        }
-      }
-      // *** DON'T ACK UBX-NAV-STATUS REQUESTS ***
 
     // Poll CFG-MSG (autoNAVSATRate)
     } else if((ubxModuleType == TGPSE_UBX_M8_MODULE) &&
@@ -372,11 +346,51 @@ void TeenyGPSEmulate::processIncomingPacket() {
       if(emulatorSettings.autoNAVSATRate!=0) {
         if(requestNAVSATPacket) {
           lostNAVSATRequestCount += (lostNAVSATRequestCount < 99) ? 1 : 0;
-        } else {
-          requestNAVSATPacket = true;
         }
+        requestNAVSATPacket = true;
       }
       // *** DON'T ACK UBX-NAV-SAT REQUESTS ***
+
+    // Poll CFG-MSG (autoNAVSTATUSRate)
+    } else if((ubxModuleType == TGPSE_UBX_M8_MODULE) &&
+              (receivedPacket.messageClass == TGPSE_UBX_CLASS_CFG) &&
+              (receivedPacket.messageID == TGPSE_UBX_CFG_MSG) &&
+              (receivedPacket.payloadLength == 2) &&
+              (receivedPacket.payload[0] == TGPSE_UBX_CLASS_NAV) &&
+              (receivedPacket.payload[1] == TGPSE_UBX_NAV_STATUS)) {
+      // Return autoNAVSTATUSRate setting
+      responsePacket.messageClass = receivedPacket.messageClass;
+      responsePacket.messageID = receivedPacket.messageID;
+      responsePacket.payloadLength = 3;
+      responsePacket.payload[0] = TGPSE_UBX_CLASS_NAV;
+      responsePacket.payload[1] = TGPSE_UBX_NAV_STATUS;
+      responsePacket.payload[2] = emulatorSettings.autoNAVSTATUSRate;
+      calcChecksum(&responsePacket);
+      responsePacket.validPacket = true;
+      buildAcknowledgePacket(receivedPacket.messageClass, receivedPacket.messageID, true);
+
+    // Set CFG-MSG (autoNAVSTATUSRate)
+    } else if((ubxModuleType == TGPSE_UBX_M8_MODULE) &&
+              (receivedPacket.messageClass == TGPSE_UBX_CLASS_CFG) &&
+              (receivedPacket.messageID == TGPSE_UBX_CFG_MSG) &&
+              (receivedPacket.payloadLength == 3) &&
+              (receivedPacket.payload[0] == TGPSE_UBX_CLASS_NAV) &&
+              (receivedPacket.payload[1] == TGPSE_UBX_NAV_STATUS)) {
+      emulatorSettings.autoNAVSTATUSRate = receivedPacket.payload[2];
+      buildAcknowledgePacket(receivedPacket.messageClass, receivedPacket.messageID, true);
+      
+    // Poll NAV-STATUS (Navigation status - manual polling mode)
+    } else if((receivedPacket.messageClass == TGPSE_UBX_CLASS_NAV) &&
+              (receivedPacket.messageID == TGPSE_UBX_NAV_STATUS) &&
+              (receivedPacket.payloadLength == 0)) {
+      // Request NAV-STATUS packet if not in autoNAVSTATUS mode
+      if(emulatorSettings.autoNAVSTATUSRate!=0) {
+        if(requestNAVSTATUSPacket) {
+          lostNAVSTATUSRequestCount += (lostNAVSTATUSRequestCount < 99) ? 1 : 0;
+        }
+        requestNAVSTATUSPacket = true;
+      }
+      // *** DON'T ACK UBX-NAV-STATUS REQUESTS ***
 
     // Poll MON-VER (receiver and software versions)
     } else if((receivedPacket.messageClass == TGPSE_UBX_CLASS_MON) &&
@@ -453,7 +467,7 @@ void TeenyGPSEmulate::processIncomingPacket() {
         if((requestedBaudRate == 9600) ||
            (requestedBaudRate == 38400) ||
            (requestedBaudRate == 115200)) {
-          init(*serialPort, requestedBaudRate, ubxModuleType);
+          restart(*serialPort, requestedBaudRate, ubxModuleType, ubxPktLoopEnable);
           receivedPacket.validPacket = false;
           return;
         } else {
@@ -502,19 +516,6 @@ void TeenyGPSEmulate::processIncomingPacket() {
       emulatorSettings.autoNAVPVTRate = receivedPacket.payload[8];
       buildAcknowledgePacket(receivedPacket.messageClass, receivedPacket.messageID, true);
 
-    // Set CFG-VALSET (autoNAVSTATUSRate)
-    } else if((ubxModuleType == TGPSE_UBX_M10_MODULE) &&
-              (receivedPacket.messageClass == TGPSE_UBX_CLASS_CFG) &&
-              (receivedPacket.messageID == TGPSE_UBX_CFG_VALSET) &&
-              (receivedPacket.payloadLength == 9) &&
-              (receivedPacket.payload[4] == (TGPSE_UBLOX_CFG_MSGOUT_UBX_NAV_STATUS_UART1 & 0xFF)) &&
-              (receivedPacket.payload[5] == ((TGPSE_UBLOX_CFG_MSGOUT_UBX_NAV_STATUS_UART1 >> 8) & 0xFF)) &&
-              (receivedPacket.payload[6] == ((TGPSE_UBLOX_CFG_MSGOUT_UBX_NAV_STATUS_UART1 >> 16) & 0xFF)) &&
-              (receivedPacket.payload[7] == ((TGPSE_UBLOX_CFG_MSGOUT_UBX_NAV_STATUS_UART1 >> 24) & 0xFF))) {
-      // Update autoNAVSTATUSRate
-      emulatorSettings.autoNAVSTATUSRate = receivedPacket.payload[8];
-      buildAcknowledgePacket(receivedPacket.messageClass, receivedPacket.messageID, true);
-
     // Set CFG-VALSET (autoNAVSATRate)
     } else if((ubxModuleType == TGPSE_UBX_M10_MODULE) &&
               (receivedPacket.messageClass == TGPSE_UBX_CLASS_CFG) &&
@@ -528,20 +529,47 @@ void TeenyGPSEmulate::processIncomingPacket() {
       emulatorSettings.autoNAVSATRate = receivedPacket.payload[8];
       buildAcknowledgePacket(receivedPacket.messageClass, receivedPacket.messageID, true);
 
+    // Set CFG-VALSET (autoNAVSTATUSRate)
+    } else if((ubxModuleType == TGPSE_UBX_M10_MODULE) &&
+              (receivedPacket.messageClass == TGPSE_UBX_CLASS_CFG) &&
+              (receivedPacket.messageID == TGPSE_UBX_CFG_VALSET) &&
+              (receivedPacket.payloadLength == 9) &&
+              (receivedPacket.payload[4] == (TGPSE_UBLOX_CFG_MSGOUT_UBX_NAV_STATUS_UART1 & 0xFF)) &&
+              (receivedPacket.payload[5] == ((TGPSE_UBLOX_CFG_MSGOUT_UBX_NAV_STATUS_UART1 >> 8) & 0xFF)) &&
+              (receivedPacket.payload[6] == ((TGPSE_UBLOX_CFG_MSGOUT_UBX_NAV_STATUS_UART1 >> 16) & 0xFF)) &&
+              (receivedPacket.payload[7] == ((TGPSE_UBLOX_CFG_MSGOUT_UBX_NAV_STATUS_UART1 >> 24) & 0xFF))) {
+      // Update autoNAVSTATUSRate
+      emulatorSettings.autoNAVSTATUSRate = receivedPacket.payload[8];
+      buildAcknowledgePacket(receivedPacket.messageClass, receivedPacket.messageID, true);
+
     // NAK anything else (because it is not supported/needed)
     } else {
-      unknownPacket = receivedPacket;
+      unsupportedRxPacketCount++;
+      unsupportedPacket = receivedPacket;
       buildAcknowledgePacket(receivedPacket.messageClass, receivedPacket.messageID, false);
     }
 
+    processedRxPacketCount++;
     receivedPacket.validPacket = false;
-    sendPackets();
+
+    // Send response and ACK/NAK if available
+    sendRspAckPackets();
   }
 }
 
 /********************************************************************/
 uint8_t TeenyGPSEmulate::getLostRxPacketCount() {
   return lostRxPacketCount;
+}
+
+/********************************************************************/
+uint8_t TeenyGPSEmulate::getProcessedRxPacketCount() {
+  return processedRxPacketCount;
+}
+
+/********************************************************************/
+uint8_t TeenyGPSEmulate::getUnsupportedRxPacketCount() {
+  return unsupportedRxPacketCount;
 }
 
 /********************************************************************/
@@ -556,19 +584,19 @@ void TeenyGPSEmulate::buildAcknowledgePacket(uint8_t messageClass, uint8_t messa
 }
 
 /********************************************************************/
-void TeenyGPSEmulate::sendPackets() {
+void TeenyGPSEmulate::sendRspAckPackets() {
   if(responsePacket.validPacket) {
-    sendPacket(&responsePacket);
+    sendRspAckPacket(&responsePacket);
     responsePacket.validPacket = false;
   }
   if(acknowledgePacket.validPacket) {
-    sendPacket(&acknowledgePacket);
+    sendRspAckPacket(&acknowledgePacket);
     acknowledgePacket.validPacket = false;
   }
 }
 
 /********************************************************************/
-void TeenyGPSEmulate::sendPacket(ubxPacket_t *pkt) {
+void TeenyGPSEmulate::sendRspAckPacket(ubxPacket_t *pkt) {
   serialPort->write(pkt->synch1);
   serialPort->write(pkt->synch2);
   serialPort->write(pkt->messageClass);
@@ -610,13 +638,13 @@ uint8_t TeenyGPSEmulate::getAutoNAVPVTRate() {
 }
 
 /********************************************************************/
-uint8_t TeenyGPSEmulate::getAutoNAVSTATUSRate() {
-  return emulatorSettings.autoNAVSTATUSRate;
+uint8_t TeenyGPSEmulate::getAutoNAVSATRate() {
+  return emulatorSettings.autoNAVSATRate;
 }
 
 /********************************************************************/
-uint8_t TeenyGPSEmulate::getAutoNAVSATRate() {
-  return emulatorSettings.autoNAVSATRate;
+uint8_t TeenyGPSEmulate::getAutoNAVSTATUSRate() {
+  return emulatorSettings.autoNAVSTATUSRate;
 }
 
 /********************************************************************/
@@ -647,6 +675,16 @@ uint8_t TeenyGPSEmulate::getLostNAVPVTRequestCount() {
 }
 
 /********************************************************************/
+uint8_t TeenyGPSEmulate::getLostNAVPVTPacketCount() {
+  return lostNAVPVTPacketCount;
+}
+
+/********************************************************************/
+uint8_t TeenyGPSEmulate::getSentNAVPVTPacketCount() {
+  return sentNAVPVTPacketCount;
+}
+
+/********************************************************************/
 void TeenyGPSEmulate::setAutoNAVPVTRate(uint8_t rate) {
   emulatorSettings.autoNAVPVTRate = rate;
 }
@@ -671,7 +709,11 @@ bool TeenyGPSEmulate::isNAVPVTPacket() {
 /********************************************************************/
 bool TeenyGPSEmulate::setNAVPVTPacket() {
   if(isNAVPVTPacket()) {
+    if(ubxNAVPVTPacket.valid && (emulatorSettings.autoNAVPVTRate!=0)) {
+      lostNAVPVTPacketCount++;
+    }
     memcpy(ubxNAVPVTPacket.payload, ubxLoopPacket.payload, ubxLoopPacket.payloadLength);
+    ubxNAVPVTPacket.valid = true;
     return true;
   }
   return false;
@@ -680,6 +722,7 @@ bool TeenyGPSEmulate::setNAVPVTPacket() {
 /********************************************************************/
 void TeenyGPSEmulate::setNAVPVTColdPacket() {
   memcpy(&ubxNAVPVTPacket.payload, TGPSE_UBX_NAV_PVT_COLD_PAYLOAD, TGPSE_UBX_NAV_PVT_PAYLOADLENGTH);
+  ubxNAVPVTPacket.valid = true;
 }
 
 /********************************************************************/
@@ -763,88 +806,25 @@ void TeenyGPSEmulate::unsetNAVPVTPacketLocationValidFlag() {
 }
 
 /********************************************************************/
+bool TeenyGPSEmulate::isNAVPVTPacketValid() {
+  return ubxNAVPVTPacket.valid;
+}
+
+/********************************************************************/
 bool TeenyGPSEmulate::sendNAVPVTPacket() {
   calcChecksum(&ubxNAVPVTPacket);
-  serialPort->write((uint8_t*)&ubxNAVPVTPacket, sizeof(ubxNAVPVTPacket));
-  return true;
-}
-
-/********************************************************************/
-/********************************************************************/
-// Methods for manual and automatic UBX NAVSTATUS transmission
-/********************************************************************/
-/********************************************************************/
-uint32_t TeenyGPSEmulate::getNAVSTATUSTransmissionRate() {
-  if(emulatorSettings.autoNAVSTATUSRate == 0) {
-    return 0;
-  }
-  return ((uint32_t)emulatorSettings.measurementRate *
-                    emulatorSettings.navigationRate) / emulatorSettings.autoNAVSTATUSRate;
-}
-
-/********************************************************************/
-bool TeenyGPSEmulate::isNAVSTATUSPacketRequested() {
-  if(requestNAVSTATUSPacket) {
-    requestNAVSTATUSPacket = false;
-    return true;
-  }
-  return false;
-}
-
-/********************************************************************/
-uint8_t TeenyGPSEmulate::getLostNAVSTATUSRequestCount() {
-  return lostNAVSTATUSRequestCount;
-}
-
-/********************************************************************/
-void TeenyGPSEmulate::setAutoNAVSTATUSRate(uint8_t rate) {
-  emulatorSettings.autoNAVSTATUSRate = rate;
-}
-
-/********************************************************************/
-bool TeenyGPSEmulate::isAutoNAVSTATUSEnabled() {
-  return emulatorSettings.autoNAVSTATUSRate!=0;
-}
-
-/********************************************************************/
-bool TeenyGPSEmulate::isNAVSTATUSPacket() {
-  if((ubxLoopPacket.synch1 == TGPSE_UBX_SYNCH_1) &&
-     (ubxLoopPacket.synch2 == TGPSE_UBX_SYNCH_2) &&
-     (ubxLoopPacket.messageClass == TGPSE_UBX_CLASS_NAV) &&
-     (ubxLoopPacket.messageID == TGPSE_UBX_NAV_STATUS) &&
-     (ubxLoopPacket.payloadLength == TGPSE_UBX_NAV_STATUS_PAYLOADLENGTH)) {
-    return true;
-  }
-  return false;
-}
-
-/********************************************************************/
-bool TeenyGPSEmulate::setNAVSTATUSPacket() {
-  if(isNAVSTATUSPacket()) {
-    memcpy(ubxNAVSTATUSPacket.payload, ubxLoopPacket.payload, ubxLoopPacket.payloadLength);
-    return true;
-  }
-  return false;
-}
-
-/********************************************************************/
-void TeenyGPSEmulate::setNAVSTATUSColdPacket() {
-  memcpy(&ubxNAVSTATUSPacket.payload, TGPSE_UBX_NAV_STATUS_COLD_PAYLOAD, TGPSE_UBX_NAV_STATUS_PAYLOADLENGTH);
-}
-
-/********************************************************************/
-ubxNAVSTATUSInfo_t TeenyGPSEmulate::getNAVSTATUSPacketInfo() {
-  ubxNAVSTATUSInfo.gpsFix        = ubxNAVSTATUSPacket.payload[4];
-  ubxNAVSTATUSInfo.gpsFixOk      = ubxNAVSTATUSPacket.payload[5] & 0x01;
-  ubxNAVSTATUSInfo.psmState      = ubxNAVSTATUSPacket.payload[7] & 0x03;
-  ubxNAVSTATUSInfo.spoofDetState = (ubxNAVSTATUSPacket.payload[7] & 0x18) >> 3;
-  return ubxNAVSTATUSInfo;
-}
-
-/********************************************************************/
-bool TeenyGPSEmulate::sendNAVSTATUSPacket() {
-  calcChecksum(&ubxNAVSTATUSPacket);
-  serialPort->write((uint8_t*)&ubxNAVSTATUSPacket, sizeof(ubxNAVSTATUSPacket));
+  //serialPort->write((uint8_t*)&ubxNAVPVTPacket, TGPSE_UBX_NAV_PVT_PACKETLENGTH);
+  serialPort->write(ubxNAVPVTPacket.synch1);
+  serialPort->write(ubxNAVPVTPacket.synch2);
+  serialPort->write(ubxNAVPVTPacket.messageClass);
+  serialPort->write(ubxNAVPVTPacket.messageID);
+  serialPort->write(ubxNAVPVTPacket.payloadLength & 0xFF);
+  serialPort->write(ubxNAVPVTPacket.payloadLength >> 8);
+  serialPort->write(ubxNAVPVTPacket.payload, ubxNAVPVTPacket.payloadLength);
+  serialPort->write(ubxNAVPVTPacket.checksumA);
+  serialPort->write(ubxNAVPVTPacket.checksumB);
+  ubxNAVPVTPacket.valid = false;
+  sentNAVPVTPacketCount++;
   return true;
 }
 
@@ -876,6 +856,16 @@ uint8_t TeenyGPSEmulate::getLostNAVSATRequestCount() {
 }
 
 /********************************************************************/
+uint8_t TeenyGPSEmulate::getLostNAVSATPacketCount() {
+  return lostNAVSATPacketCount;
+}
+
+/********************************************************************/
+uint8_t TeenyGPSEmulate::getSentNAVSATPacketCount() {
+  return sentNAVSATPacketCount;
+}
+
+/********************************************************************/
 void TeenyGPSEmulate::setAutoNAVSATRate(uint8_t rate) {
   emulatorSettings.autoNAVSATRate = rate;
 }
@@ -901,8 +891,12 @@ bool TeenyGPSEmulate::isNAVSATPacket() {
 /********************************************************************/
 bool TeenyGPSEmulate::setNAVSATPacket() {
   if(isNAVSATPacket()) {
+    if(ubxNAVSATPacket.valid && (emulatorSettings.autoNAVSATRate!=0)) {
+      lostNAVSATPacketCount++;
+    }
     ubxNAVSATPacket.payloadLength = ubxLoopPacket.payloadLength;
     memcpy(ubxNAVSATPacket.payload, ubxLoopPacket.payload, ubxLoopPacket.payloadLength);
+    ubxNAVSATPacket.valid = true;
     return true;
   }
   return false;
@@ -910,8 +904,9 @@ bool TeenyGPSEmulate::setNAVSATPacket() {
 
 /********************************************************************/
 void TeenyGPSEmulate::setNAVSATColdPacket() {
-  memcpy(&ubxNAVSATPacket.payload, TGPSE_UBX_NAV_SAT_COLD_PAYLOAD, TGPSE_UBX_NAV_SAT_MINPAYLOADLENGTH);
   ubxNAVSATPacket.payloadLength = TGPSE_UBX_NAV_SAT_MINPAYLOADLENGTH;
+  memcpy(&ubxNAVSATPacket.payload, TGPSE_UBX_NAV_SAT_COLD_PAYLOAD, TGPSE_UBX_NAV_SAT_MINPAYLOADLENGTH);
+  ubxNAVSATPacket.valid = true;
 }
 
 /********************************************************************/
@@ -921,8 +916,14 @@ ubxNAVSATInfo_t TeenyGPSEmulate::getNAVSATPacketInfo() {
 }
 
 /********************************************************************/
+bool TeenyGPSEmulate::isNAVSATPacketValid() {
+  return ubxNAVSATPacket.valid;
+}
+
+/********************************************************************/
 bool TeenyGPSEmulate::sendNAVSATPacket() {
   calcChecksum(&ubxNAVSATPacket);
+  //serialPort->write((uint8_t*)&ubxNAVSATPacket, (ubxNAVSATPacket.payloadLength+8));
   serialPort->write(ubxNAVSATPacket.synch1);
   serialPort->write(ubxNAVSATPacket.synch2);
   serialPort->write(ubxNAVSATPacket.messageClass);
@@ -932,7 +933,130 @@ bool TeenyGPSEmulate::sendNAVSATPacket() {
   serialPort->write(ubxNAVSATPacket.payload, ubxNAVSATPacket.payloadLength);
   serialPort->write(ubxNAVSATPacket.checksumA);
   serialPort->write(ubxNAVSATPacket.checksumB);
+  ubxNAVSATPacket.valid = false;
+  sentNAVSATPacketCount++;
   return true;
+}
+
+/********************************************************************/
+/********************************************************************/
+// Methods for manual and automatic UBX NAVSTATUS transmission
+/********************************************************************/
+/********************************************************************/
+uint32_t TeenyGPSEmulate::getNAVSTATUSTransmissionRate() {
+  if(emulatorSettings.autoNAVSTATUSRate == 0) {
+    return 0;
+  }
+  return ((uint32_t)emulatorSettings.measurementRate *
+                    emulatorSettings.navigationRate) / emulatorSettings.autoNAVSTATUSRate;
+}
+
+/********************************************************************/
+bool TeenyGPSEmulate::isNAVSTATUSPacketRequested() {
+  if(requestNAVSTATUSPacket) {
+    requestNAVSTATUSPacket = false;
+    return true;
+  }
+  return false;
+}
+
+/********************************************************************/
+uint8_t TeenyGPSEmulate::getLostNAVSTATUSRequestCount() {
+  return lostNAVSTATUSRequestCount;
+}
+
+/********************************************************************/
+uint8_t TeenyGPSEmulate::getLostNAVSTATUSPacketCount() {
+  return lostNAVSTATUSPacketCount;
+}
+
+/********************************************************************/
+uint8_t TeenyGPSEmulate::getSentNAVSTATUSPacketCount() {
+  return sentNAVSTATUSPacketCount;
+}
+
+/********************************************************************/
+void TeenyGPSEmulate::setAutoNAVSTATUSRate(uint8_t rate) {
+  emulatorSettings.autoNAVSTATUSRate = rate;
+}
+
+/********************************************************************/
+bool TeenyGPSEmulate::isAutoNAVSTATUSEnabled() {
+  return emulatorSettings.autoNAVSTATUSRate!=0;
+}
+
+/********************************************************************/
+bool TeenyGPSEmulate::isNAVSTATUSPacket() {
+  if((ubxLoopPacket.synch1 == TGPSE_UBX_SYNCH_1) &&
+     (ubxLoopPacket.synch2 == TGPSE_UBX_SYNCH_2) &&
+     (ubxLoopPacket.messageClass == TGPSE_UBX_CLASS_NAV) &&
+     (ubxLoopPacket.messageID == TGPSE_UBX_NAV_STATUS) &&
+     (ubxLoopPacket.payloadLength == TGPSE_UBX_NAV_STATUS_PAYLOADLENGTH)) {
+    return true;
+  }
+  return false;
+}
+
+/********************************************************************/
+bool TeenyGPSEmulate::setNAVSTATUSPacket() {
+  if(isNAVSTATUSPacket()) {
+    if(ubxNAVSTATUSPacket.valid && (emulatorSettings.autoNAVSTATUSRate!=0)) {
+      lostNAVSTATUSPacketCount++;
+    }
+    memcpy(ubxNAVSTATUSPacket.payload, ubxLoopPacket.payload, ubxLoopPacket.payloadLength);
+    ubxNAVSTATUSPacket.valid = true;
+    return true;
+  }
+  return false;
+}
+
+/********************************************************************/
+void TeenyGPSEmulate::setNAVSTATUSColdPacket() {
+  memcpy(&ubxNAVSTATUSPacket.payload, TGPSE_UBX_NAV_STATUS_COLD_PAYLOAD, TGPSE_UBX_NAV_STATUS_PAYLOADLENGTH);
+  ubxNAVSTATUSPacket.valid = true;
+}
+
+/********************************************************************/
+ubxNAVSTATUSInfo_t TeenyGPSEmulate::getNAVSTATUSPacketInfo() {
+  ubxNAVSTATUSInfo.gpsFix        = ubxNAVSTATUSPacket.payload[4];
+  ubxNAVSTATUSInfo.gpsFixOk      = ubxNAVSTATUSPacket.payload[5] & 0x01;
+  ubxNAVSTATUSInfo.psmState      = ubxNAVSTATUSPacket.payload[7] & 0x03;
+  ubxNAVSTATUSInfo.spoofDetState = (ubxNAVSTATUSPacket.payload[7] & 0x18) >> 3;
+  return ubxNAVSTATUSInfo;
+}
+
+/********************************************************************/
+bool TeenyGPSEmulate::isNAVSTATUSPacketValid() {
+  return ubxNAVSTATUSPacket.valid;
+}
+
+/********************************************************************/
+bool TeenyGPSEmulate::sendNAVSTATUSPacket() {
+  calcChecksum(&ubxNAVSTATUSPacket);
+  //serialPort->write((uint8_t*)&ubxNAVSTATUSPacket, TGPSE_UBX_NAV_STATUS_PAYLOADLENGTH);
+  serialPort->write(ubxNAVSTATUSPacket.synch1);
+  serialPort->write(ubxNAVSTATUSPacket.synch2);
+  serialPort->write(ubxNAVSTATUSPacket.messageClass);
+  serialPort->write(ubxNAVSTATUSPacket.messageID);
+  serialPort->write(ubxNAVSTATUSPacket.payloadLength & 0xFF);
+  serialPort->write(ubxNAVSTATUSPacket.payloadLength >> 8);
+  serialPort->write(ubxNAVSTATUSPacket.payload, ubxNAVSTATUSPacket.payloadLength);
+  serialPort->write(ubxNAVSTATUSPacket.checksumA);
+  serialPort->write(ubxNAVSTATUSPacket.checksumB);
+  ubxNAVSTATUSPacket.valid = false;
+  sentNAVSTATUSPacketCount++;
+  return true;
+}
+
+/********************************************************************/
+/********************************************************************/
+// Run status
+/********************************************************************/
+/********************************************************************/
+bool TeenyGPSEmulate::isRunning() {
+  return isAutoNAVPVTEnabled()    || isNAVPVTPacketRequested() ||
+         isAutoNAVSATEnabled()    || isNAVSATPacketRequested() ||
+         isAutoNAVSTATUSEnabled() || isNAVSTATUSPacketRequested();
 }
 
 /********************************************************************/
@@ -942,15 +1066,15 @@ bool TeenyGPSEmulate::sendNAVSATPacket() {
 /********************************************************************/
 void TeenyGPSEmulate::setEmuColdOutputPackets() {
   setNAVPVTColdPacket();
-  setNAVSTATUSColdPacket();
   setNAVSATColdPacket();
+  setNAVSTATUSColdPacket();
 }
 
 /********************************************************************/
 bool TeenyGPSEmulate::setEmuLoopOutputPackets() {
   if(!processUBXLoopPacket()) return false;
   uint32_t _pktTimestamp = getUBXLoopPacketTimeStamp();
-  // Check for up to three packets with same timestamp (NAVPVT, NAVSTATUS, NAVSAT)
+  // Check for up to three packets with same timestamp (NAVPVT, NAVSAT, NAVSTATUS)
   if(!assignUBXLoopOutputPacket()) return false;
   if(!processUBXLoopPacket()) return false;
   if((getUBXLoopPacketTimeStamp() == _pktTimestamp) && !assignUBXLoopOutputPacket()) return false;
@@ -961,14 +1085,8 @@ bool TeenyGPSEmulate::setEmuLoopOutputPackets() {
 
 /********************************************************************/
 bool TeenyGPSEmulate::assignUBXLoopOutputPacket() {
-  uint16_t _pktLength = getUBXLoopPacketLength();
   // Assign NAVPVT packet?
   if(setNAVPVTPacket()) {
-    ubxLoopPacket.validPacket = false;
-    return true;
-  }
-  // Assign NAVSTATUS packet?
-  if(setNAVSTATUSPacket()) {
     ubxLoopPacket.validPacket = false;
     return true;
   }
@@ -977,13 +1095,13 @@ bool TeenyGPSEmulate::assignUBXLoopOutputPacket() {
     ubxLoopPacket.validPacket = false;
     return true;
   }
+  // Assign NAVSTATUS packet?
+  if(setNAVSTATUSPacket()) {
+    ubxLoopPacket.validPacket = false;
+    return true;
+  }
   ubxLoopPacket.validPacket = false; // purge unknown ubx packet
   return false;
-}
-
-/********************************************************************/
-uint16_t TeenyGPSEmulate::getUBXLoopPacketLength() {
-  return ubxLoopPacket.payloadLength + 8;
 }
 
 /********************************************************************/
@@ -998,36 +1116,53 @@ uint32_t TeenyGPSEmulate::getUBXLoopPacketTimeStamp() {
 
 /********************************************************************/
 bool TeenyGPSEmulate::processUBXLoopPacket() {
-  // Only update if packet has been processed
+  // Only update if prior packet has been processed
   if(ubxLoopPacket.validPacket) return true;
   // Process packet
   if(readUBXLoopByte() != TGPSE_UBX_SYNCH_1) return false;
   if(readUBXLoopByte() != TGPSE_UBX_SYNCH_2) return false;
-  ubxLoopPacket.messageClass  =  readUBXLoopByte();
-  ubxLoopPacket.messageID     =  readUBXLoopByte();
-  ubxLoopPacket.payloadLength =  readUBXLoopByte();
-  ubxLoopPacket.payloadLength |= readUBXLoopByte() << 8;
+  ubxLoopPacket.rollingChecksumA = 0;
+  ubxLoopPacket.rollingChecksumB = 0;
+  ubxLoopPacket.messageClass  =  readUBXLoopByte(true);
+  ubxLoopPacket.messageID     =  readUBXLoopByte(true);
+  ubxLoopPacket.payloadLength =  readUBXLoopByte(true);
+  ubxLoopPacket.payloadLength |= readUBXLoopByte(true) << 8;
   if(ubxLoopPacket.payloadLength > TGPSE_UBX_MAXPAYLOADLENGTH) return false;
-  for(uint16_t i = 0; i < ubxLoopPacket.payloadLength; i++) {
-    ubxLoopPacket.payload[i] = readUBXLoopByte();
+  for(uint16_t i=0; i<ubxLoopPacket.payloadLength; i++) {
+    ubxLoopPacket.payload[i] = readUBXLoopByte(true);
   }
-  ubxLoopPacket.checksumA     =  readUBXLoopByte();
-  ubxLoopPacket.checksumB     =  readUBXLoopByte();
-  ubxLoopPacket.validPacket   =  true;
-  return true;
+  ubxLoopPacket.checksumA   = readUBXLoopByte();
+  ubxLoopPacket.checksumB   = readUBXLoopByte();
+  ubxLoopPacket.validPacket = (ubxLoopPacket.checksumA == ubxLoopPacket.rollingChecksumA) &&
+                              (ubxLoopPacket.checksumB == ubxLoopPacket.rollingChecksumB);
+  return ubxLoopPacket.validPacket;
 }
 
 /********************************************************************/
-uint8_t TeenyGPSEmulate::readUBXLoopByte() {
+uint8_t TeenyGPSEmulate::readUBXLoopByte(bool updateChecksum) {
+  uint8_t _value;
   if(ubxFetch == nullptr) {
-    if(ubxLoopPacketIndex >= sizeof(TGPSE_UBX_NAV_PVT_STATUS_SAT_LOOP_PACKETS)) {
+    if(ubxLoopPacketIndex >= sizeof(TGPSE_UBX_NAV_PVT_SAT_STATUS_LOOP_PACKETS)) {
+      if(!ubxPktLoopEnable) {
+        reset();
+        return 0;
+      }
       ubxLoopPacketIndex = 0;
     }
-    return TGPSE_UBX_NAV_PVT_STATUS_SAT_LOOP_PACKETS[ubxLoopPacketIndex++];
+    _value = TGPSE_UBX_NAV_PVT_SAT_STATUS_LOOP_PACKETS[ubxLoopPacketIndex++];
+  } else {
+    if(!ubxFetch(&_value)) {
+      reset();
+      return 0;
+    }
   }
-  return (ubxFetch)();
+  if(updateChecksum) {
+    ubxLoopPacket.rollingChecksumA += _value;
+    ubxLoopPacket.rollingChecksumB += ubxLoopPacket.rollingChecksumA;
+  }
+  return _value;
 }
-  
+
 /********************************************************************/
 /********************************************************************/
 // checksum
@@ -1079,7 +1214,7 @@ void TeenyGPSEmulate::calcChecksum(ubxNAVPVTPacket_t *pkt) {
   }
 }
 /********************************************************************/
-void TeenyGPSEmulate::calcChecksum(ubxNAVSTATUSPacket_t *pkt) {
+void TeenyGPSEmulate::calcChecksum(ubxNAVSATPacket_t *pkt) {
   pkt->checksumA = 0;
   pkt->checksumB = 0;
 
@@ -1101,7 +1236,7 @@ void TeenyGPSEmulate::calcChecksum(ubxNAVSTATUSPacket_t *pkt) {
   }
 }
 /********************************************************************/
-void TeenyGPSEmulate::calcChecksum(ubxNAVSATPacket_t *pkt) {
+void TeenyGPSEmulate::calcChecksum(ubxNAVSTATUSPacket_t *pkt) {
   pkt->checksumA = 0;
   pkt->checksumB = 0;
 

@@ -11,6 +11,7 @@ File sdFile; // SD file pointer
 File sdFile_ubx; // SD file pointer
 File sdFile_gpx; // SD file pointer
 File sdFile_kml; // SD file pointer
+File sdFile_csv; // SD file pointer
 
 /********************************************************************/
 bool sdcard_setup() {
@@ -97,13 +98,18 @@ uint16_t sdcard_closeGNSSConfigFile() {
 }
 
 /********************************************************************/
+// GPS Logging
+/********************************************************************/
+bool     gpsLoggingInProgress = false;
+
+/********************************************************************/
 // UBX Logging File Writer
 /********************************************************************/
-bool     ubxLoggingInProgress = false;
 uint8_t  ubxLoggingFileNum = 0;
 char     ubxLoggingFileName[14]={0};
 uint32_t ubxLoggingFileWriteCount;
-uint32_t ubxLoggingFileWriteValidCount;
+uint32_t ubxLoggingFileWritePktCount;
+uint32_t ubxLoggingFileWritePktValidCount;
 /********************************************************************/
 bool sdcard_openUBXLoggingFile() {
   if(!sdcardEnabled) return false;
@@ -115,13 +121,16 @@ bool sdcard_openUBXLoggingFile() {
   sdFile_ubx = SD.open(ubxLoggingFileName, FILE_WRITE);
   if(!sdFile_ubx) return false;
   ubxLoggingFileWriteCount = 0;
-  ubxLoggingFileWriteValidCount = 0;
+  ubxLoggingFileWritePktCount = 0;
+  ubxLoggingFileWritePktValidCount = 0;
   return true;
 }
 /********************************************************************/
-void sdcard_writeUBXLoggingFile(const uint8_t *buf, size_t size) {
+void sdcard_writeUBXLoggingFile(const uint8_t *buf, size_t size, bool pktValid=false, bool append=false) {
   sdFile_ubx.write(buf, size);
-  //ubxLoggingFileWriteCount++; //done in loop along with fixed count
+  if(!append) ubxLoggingFileWriteCount++;
+  ubxLoggingFileWritePktCount++;
+  if(pktValid) ubxLoggingFileWritePktValidCount++;
 }
 /********************************************************************/
 uint16_t sdcard_closeUBXLoggingFile() {
@@ -158,9 +167,9 @@ bool sdcard_openGPXLoggingFile() {
   return true;
 }
 /********************************************************************/
-void sdcard_writeGPXLoggingFile(const uint8_t *buf, size_t size) {
+void sdcard_writeGPXLoggingFile(const uint8_t *buf, size_t size, bool append=false) {
   sdFile_gpx.write(buf, size);
-  gpxLoggingFileWriteCount++;
+  if(!append) gpxLoggingFileWriteCount++;
 }
 /********************************************************************/
 uint16_t sdcard_closeGPXLoggingFile() {
@@ -194,37 +203,85 @@ bool sdcard_openKMLLoggingFile() {
   sdFile_kml = SD.open(kmlLoggingFileName, FILE_WRITE);
   if(!sdFile_kml) return false;
   sdFile_kml.write((uint8_t*)"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
-                   strlen("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"));
+                      strlen("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"));
   sdFile_kml.write((uint8_t*)"<kml xmlns=\"http://www.opengis.net/kml/2.2\" xmlns:gx=\"http://www.google.com/kml/ext/2.2\">\n",
-                   strlen("<kml xmlns=\"http://www.opengis.net/kml/2.2\" xmlns:gx=\"http://www.google.com/kml/ext/2.2\">\n"));
+                      strlen("<kml xmlns=\"http://www.opengis.net/kml/2.2\" xmlns:gx=\"http://www.google.com/kml/ext/2.2\">\n"));
   sdFile_kml.write((uint8_t*)"<Folder>\n",
-                   strlen("<Folder>\n"));
+                      strlen("<Folder>\n"));
   sdFile_kml.write((uint8_t*)"  <Placemark>\n",
-                   strlen("  <Placemark>\n"));
+                      strlen("  <Placemark>\n"));
   sdFile_kml.write((uint8_t*)"    <gx:Track>\n",
-                   strlen("    <gx:Track>\n"));
+                      strlen("    <gx:Track>\n"));
   kmlLoggingFileWriteCount = 0;
   return true;
 }
 /********************************************************************/
-void sdcard_writeKMLLoggingFile(const uint8_t *buf, size_t size) {
+void sdcard_writeKMLLoggingFile(const uint8_t *buf, size_t size, bool append=false) {
   sdFile_kml.write(buf, size);
-  kmlLoggingFileWriteCount++;
+  if(!append) kmlLoggingFileWriteCount++;
 }
 /********************************************************************/
 uint16_t sdcard_closeKMLLoggingFile() {
   sdFile_kml.write((uint8_t*)"    </gx:Track>\n",
-                   strlen("    </gx:Track>\n"));
+                      strlen("    </gx:Track>\n"));
   sdFile_kml.write((uint8_t*)"  </Placemark>\n",
-                   strlen("  </Placemark>\n"));
+                      strlen("  </Placemark>\n"));
   sdFile_kml.write((uint8_t*)"</Folder>\n",
-                   strlen("</Folder>\n"));
+                      strlen("</Folder>\n"));
   sdFile_kml.write((uint8_t*)"</kml>\n",
-                   strlen("</kml>\n"));
+                      strlen("</kml>\n"));
   sdFile_kml.close();
   kmlLoggingFileNum++;
   if(kmlLoggingFileNum > 99) kmlLoggingFileNum = 0;
   return kmlLoggingFileWriteCount;
+}
+
+/********************************************************************/
+// CSV Logging File Writer
+/********************************************************************/
+uint8_t  csvLoggingFileNum = 0;
+char     csvLoggingFileName[14]={0};
+uint16_t csvLoggingFileWriteCount;
+/********************************************************************/
+bool sdcard_openCSVLoggingFile() {
+  if(!sdcardEnabled) return false;
+  sprintf(csvLoggingFileName, "/GPSLOG%02d.csv", csvLoggingFileNum);
+  if(SD.exists(csvLoggingFileName)) {
+    if(!SD.remove(csvLoggingFileName)) return false;
+  }
+  //SdFile::dateTimeCallback(sdDateTimeCB);
+  sdFile_csv = SD.open(csvLoggingFileName, FILE_WRITE);
+  if(!sdFile_csv) return false;
+  // write header
+  sdFile_csv.write((uint8_t*)"INDEX,GMT,VALIDLOC,LATITUDE,LONGITUDE,ALTITUDE,",
+                      strlen("INDEX,GMT,VALIDLOC,LATITUDE,LONGITUDE,ALTITUDE,"));
+  sdFile_csv.write((uint8_t*)"HEADING,HACCEST,VACCEST,FIXTYPE,",
+                      strlen("HEADING,HACCEST,VACCEST,FIXTYPE,"));
+  sdFile_csv.write((uint8_t*)"NUMSV,PDOP,INVALIDL1H,DISTANCE,BEARING,",
+                      strlen("NUMSV,PDOP,INVALIDL1H,DISTANCE,BEARING,"));
+  sdFile_csv.write((uint8_t*)"GPSFIXOK,GPSFIX,PSMSTATE,CARRSOLN,",
+                      strlen("GPSFIXOK,GPSFIX,PSMSTATE,CARRSOLN,"));
+  sdFile_csv.write((uint8_t*)"TTFF,SPOOFDETSTATE,SPOOFIND,MULTISPOOF,",
+                      strlen("TTFF,SPOOFDETSTATE,SPOOFIND,MULTISPOOF,"));
+  sdFile_csv.write((uint8_t*)"TOTALSATS,RCVDSATS,HEALTHYSIGNAL,EPHEMERISVALID,USEDFORNAV,SATS",
+                      strlen("TOTALSATS,RCVDSATS,HEALTHYSIGNAL,EPHEMERISVALID,USEDFORNAV,SATS"));
+  csvLoggingFileWriteCount = 0;
+  return true;
+}
+/********************************************************************/
+void sdcard_writeCSVLoggingFile(const uint8_t *buf, size_t size, bool append=false) {
+  sdFile_csv.write(buf, size);
+  if(!append) csvLoggingFileWriteCount++;
+}
+/********************************************************************/
+uint16_t sdcard_closeCSVLoggingFile() {
+  // write footer
+  sdFile_csv.write((uint8_t*)"\n",
+                      strlen("\n"));
+  sdFile_csv.close();
+  csvLoggingFileNum++;
+  if(csvLoggingFileNum > 99) csvLoggingFileNum = 0;
+  return csvLoggingFileWriteCount;
 }
 
 /********************************************************************/
@@ -270,14 +327,18 @@ bool sdcard_openUBXInputFile() {
   return true;
 }
 /********************************************************************/
-uint8_t sdcard_readUBXInputFile() {
+bool sdcard_readUBXInputFile(uint8_t* value) {
   if(sdcardEnabled && sdFile_ubx) {
     if(!sdFile_ubx.available()) {
+      if(!deviceState.EMU_UBXPKTLOOPENABLE) {
+        return false;
+      }
       sdFile_ubx.seek(0);
     }
-    return sdFile_ubx.read();
+    *value = sdFile_ubx.read();
+    return true;
   }
-  return 0;
+  return false;
 }
 /********************************************************************/
 void sdcard_closeUBXInputFile() {

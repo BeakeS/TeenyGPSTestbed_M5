@@ -33,7 +33,7 @@ TeenyGPSConnect::~TeenyGPSConnect() { }
 /********************************************************************/
 // GPS SETUP
 /********************************************************************/
-bool TeenyGPSConnect::gnss_init(HardwareSerial &serialPort_, uint32_t baudRate_, uint8_t startMode_, uint8_t autoNAVPVTRate_, uint8_t autoNAVSTATUSRate_, uint8_t autoNAVSATRate_) {
+bool TeenyGPSConnect::gnss_init(HardwareSerial &serialPort_, uint32_t baudRate_, uint8_t startMode_, uint8_t autoNAVPVTRate_, uint8_t autoNAVSATRate_, uint8_t autoNAVSTATUSRate_, bool enableDistanceBearingCalc_) {
 
   // Assign serial port
   serialPort = &serialPort_;
@@ -44,8 +44,9 @@ bool TeenyGPSConnect::gnss_init(HardwareSerial &serialPort_, uint32_t baudRate_,
 
   // Save gnss config
   autoNAVPVTRate = autoNAVPVTRate_;
-  autoNAVSTATUSRate = autoNAVSTATUSRate_;
   autoNAVSATRate = autoNAVSATRate_;
+  autoNAVSTATUSRate = autoNAVSTATUSRate_;
+  enableDistanceBearingCalc = enableDistanceBearingCalc_;
 
   // Optional startup mode
   if((startMode_ > 0) && (startMode_ < 5)) {
@@ -128,15 +129,19 @@ void TeenyGPSConnect::gnss_config() {
   gnss.setMeasurementRate(1000);                //Produce a measurement every 1000ms
   gnss.setNavigationRate(1);                    //Produce a navigation solution every measurement
   gnss.setAutoNAVPVTRate(autoNAVPVTRate);       //Include NAV-PVT reports 
-  gnss.setAutoNAVSTATUSRate(autoNAVSTATUSRate); //Include NAV-STATUS reports 
   gnss.setAutoNAVSATRate(autoNAVSATRate);       //Include NAV-SAT reports 
+  gnss.setAutoNAVSTATUSRate(autoNAVSTATUSRate); //Include NAV-STATUS reports 
 
   // Mark the fix items invalid to start
   data.packet_valid = false;
-  data.location_fixType = 0;
   data.location_valid = false;
+  data.location_fixType = 0;
   data.date_valid = false;
   data.time_valid = false;
+  data.curr_gnssFixOk = false;
+  data.prev_gnssFixOk = false;
+  data.distance = -1;
+  data.bearing  = -1;
 }
 
 /********************************************************************/
@@ -222,53 +227,62 @@ bool TeenyGPSConnect::setGNSSConfigState(ubloxCFGGNSSState_t gnssConfigState) {
 // UBX-NAV-PVT
 /********************************************************************/
 bool TeenyGPSConnect::getNAVPVT() {
-  // getNAVPVT will return true if there actually is a fresh
-  // navigation solution available. "LLH" is longitude, latitude, height.
+  // getNAVPVT will return true if there actually is a fresh navigation solution available.
   // getNAVPVT() returns UTC date and time.
   // Do not use GNSS time, see u-blox spec section 9.
   if(gnss.getNAVPVT()) {
     time_getnavpvt.restart();
+    gnss.getNAVPVTInfo(navpvtInfo);
     data.packet_valid = true;
+    data.iTOW = navpvtInfo.iTOW;
+    data.prev_gnssFixOk = data.curr_gnssFixOk;
+    data.curr_gnssFixOk = navpvtInfo.gnssFixOk;
 
-    if(gnss.getGnssFixOk()) {
-      data.location_fixType = gnss.getFixType();
+    if(data.curr_gnssFixOk) {
       data.location_valid = true;
       location_timer.restart();
-      data.latitude = (float)(gnss.getLatitude() * 1e-7);
-      data.longitude = (float)(gnss.getLongitude() * 1e-7);
-      data.altitude = gnss.getAltitude() / 1000;
-      data.altitudeMSL = gnss.getAltitudeMSL() / 1000;
-      data.heading = (float)(gnss.getHeading() * 1e-5);
-      data.numSV = gnss.getSIV();
-      data.hacc = gnss.getHorizontalAccEst() / 1000;
-      data.vacc = gnss.getVerticalAccEst() / 1000;
-      data.pdop = ((float)gnss.getPDOP()) * 0.01;
-      data.invalidLlh = gnss.getInvalidLlh();
-    }
-    else {
+      // save previous location data
+      data.prev_latitude  = data.latitude;
+      data.prev_longitude = data.longitude;
+      // get current data
+      data.location_fixType = navpvtInfo.fixType;
+      data.latitude    = navpvtInfo.latitude * 1e-7;
+      data.longitude   = navpvtInfo.longitude * 1e-7;
+      data.altitude    = navpvtInfo.altitude / 1000;
+      data.altitudeMSL = navpvtInfo.altitudeMSL / 1000;
+      data.heading     = navpvtInfo.headMot * 1e-5;
+      data.numSV       = navpvtInfo.numSV;
+      data.hAcc        = navpvtInfo.hAcc / 1000;
+      data.vAcc        = navpvtInfo.vAcc / 1000;
+      data.pDOP        = navpvtInfo.pDOP * 1e-2;
+      data.invalidLlh  = navpvtInfo.invalidLlh;
+    } else {
       // No valid fix
       if(location_timer.isExpired()) {
-        data.location_fixType = 0;
         data.location_valid = false;
+        data.location_fixType = 0;
       }
     }
+
+    // compute distance between current and previous location
+    if(enableDistanceBearingCalc) calcDistanceBearing();
  
-    if(gnss.getDateValid()) {
+    if(navpvtInfo.dateValid) {
       data.date_valid = true;
       date_timer.restart();
-      data.year = gnss.getYear();
-      data.month = gnss.getMonth();
-      data.day = gnss.getDay();
+      data.year  = navpvtInfo.year;
+      data.month = navpvtInfo.month;
+      data.day   = navpvtInfo.day;
     } else if(date_timer.isExpired()) {
       data.date_valid = false;
     }
 
-    if(gnss.getTimeValid()) {
+    if(navpvtInfo.timeValid) {
       data.time_valid = true;
       time_timer.restart();
-      data.hour = gnss.getHour();
-      data.minute = gnss.getMinute();
-      data.second = gnss.getSecond();
+      data.hour   = navpvtInfo.hour;
+      data.minute = navpvtInfo.minute;
+      data.second = navpvtInfo.second;
     } else if(time_timer.isExpired()) {
       data.time_valid = false;
     }
@@ -277,10 +291,14 @@ bool TeenyGPSConnect::getNAVPVT() {
   // else lost packet(s)
   if(time_getnavpvt.isExpired()) {
     data.packet_valid = false;
-    data.location_fixType = 0;
     data.location_valid = false;
+    data.location_fixType = 0;
     data.date_valid = false;
     data.time_valid = false;
+    data.curr_gnssFixOk = false;
+    data.prev_gnssFixOk = false;
+    data.distance = -1;
+    data.bearing  = -1;
   }
   return false;
 }
@@ -288,28 +306,47 @@ bool TeenyGPSConnect::getNAVPVT() {
 /********************************************************************/
 bool TeenyGPSConnect::pollNAVPVT() {
   if(gnss.pollNAVPVT()) {
-    data.location_fixType = gnss.getFixType();
-    data.location_valid = gnss.getGnssFixOk();
-    data.longitude = (float)(gnss.getLongitude() * 1e-7);
-    data.latitude = (float)(gnss.getLatitude() * 1e-7);
-    data.altitude = gnss.getAltitude() / 1000;
-    data.altitudeMSL = gnss.getAltitudeMSL() / 1000;
-    data.heading = (float)(gnss.getHeading() * 1e-5);
-    data.numSV = gnss.getSIV();
-    data.hacc = gnss.getHorizontalAccEst() / 1000;
-    data.vacc = gnss.getVerticalAccEst() / 1000;
-    data.pdop = ((float)gnss.getPDOP()) * 0.01;
-    data.invalidLlh = gnss.getInvalidLlh();
-    data.date_valid = gnss.getDateValid();
-    data.year = gnss.getYear();
-    data.month = gnss.getMonth();
-    data.day = gnss.getDay();
-    data.time_valid = gnss.getTimeValid();
-    data.hour = gnss.getHour();
-    data.minute = gnss.getMinute();
-    data.second = gnss.getSecond();
+    gnss.getNAVPVTInfo(navpvtInfo);
+    data.iTOW = navpvtInfo.iTOW;
+    // save previous location data
+    data.prev_gnssFixOk = data.curr_gnssFixOk;
+    data.prev_latitude  = data.latitude;
+    data.prev_longitude = data.longitude;
+    // get current data
+    data.curr_gnssFixOk   = navpvtInfo.gnssFixOk;
+    data.location_valid   = data.curr_gnssFixOk;
+    data.location_fixType = navpvtInfo.fixType;
+    data.latitude         = navpvtInfo.latitude * 1e-7;
+    data.longitude        = navpvtInfo.longitude * 1e-7;
+    data.altitude         = navpvtInfo.altitude / 1000;
+    data.altitudeMSL      = navpvtInfo.altitudeMSL / 1000;
+    data.heading          = navpvtInfo.headMot * 1e-5;
+    data.numSV            = navpvtInfo.numSV;
+    data.hAcc             = navpvtInfo.hAcc / 1000;
+    data.vAcc             = navpvtInfo.vAcc / 1000;
+    data.pDOP             = navpvtInfo.pDOP * 1e-2;
+    data.invalidLlh       = navpvtInfo.invalidLlh;
+    data.date_valid       = navpvtInfo.dateValid;
+    data.year             = navpvtInfo.year;
+    data.month            = navpvtInfo.month;
+    data.day              = navpvtInfo.day;
+    data.time_valid       = navpvtInfo.timeValid;
+    data.hour             = navpvtInfo.hour;
+    data.minute           = navpvtInfo.minute;
+    data.second           = navpvtInfo.second;
+    // compute distance between current and previous location
+    if(enableDistanceBearingCalc) calcDistanceBearing();
     return true;
   }
+  data.packet_valid = false;
+  data.location_valid = false;
+  data.location_fixType = 0;
+  data.date_valid = false;
+  data.time_valid = false;
+  data.curr_gnssFixOk = false;
+  data.prev_gnssFixOk = false;
+  data.distance = -1;
+  data.bearing  = -1;
   return false;
 }
 
@@ -319,19 +356,52 @@ void TeenyGPSConnect::getNAVPVTPacket(uint8_t *packet) {
 }
 
 /********************************************************************/
+void TeenyGPSConnect::getNAVPVTInfo(ubloxNAVPVTInfo_t &info_) {
+  info_ = navpvtInfo;
+}
+
+/********************************************************************/
+void TeenyGPSConnect::calcDistanceBearing() {
+  if(data.curr_gnssFixOk && data.prev_gnssFixOk) {
+    // staring point
+    double_t lat1R = data.prev_latitude * (PI/180.0);
+    double_t lon1R = data.prev_longitude * (PI/180.0);
+    // destination point
+    double_t lat2R = data.latitude * (PI/180.0);
+    double_t lon2R = data.longitude * (PI/180.0);
+    // distance
+    double_t a = sq(sin((lat2R-lat1R)/2.0)) + cos(lat1R) * cos(lat2R) * sq(sin((lon2R-lon1R)/2.0));
+    double_t c = 2 * atan2(sqrt(a), sqrt(1-a));
+    data.distance = round(6378137000.0 * c);
+    // bearing
+    double_t x = cos(lat2R) * sin(lon2R-lon1R);
+    double_t y = cos(lat1R) * sin(lat2R) - sin(lat1R) * cos(lat2R) * cos(lon2R-lon1R);
+    double_t bearingR = atan2(x, y);
+    int16_t bearingD = round(57.295779 * bearingR);
+    data.bearing = (bearingD + 360) % 360;
+  } else {
+    data.distance = -1;
+    data.bearing  = -1;
+  }
+}
+
+/********************************************************************/
 bool TeenyGPSConnect::isPacketValid() {
   return data.packet_valid;
 }
-uint8_t TeenyGPSConnect::getLocationFixType() {
-  return data.location_fixType;
+uint32_t TeenyGPSConnect::getITOW() {
+  return data.iTOW;
 }
 bool TeenyGPSConnect::isLocationValid() {
   return data.location_valid;
 }
-float TeenyGPSConnect::getLatitude() {
+uint8_t TeenyGPSConnect::getLocationFixType() {
+  return data.location_fixType;
+}
+float_t TeenyGPSConnect::getLatitude() {
   return data.latitude;
 }
-float TeenyGPSConnect::getLongitude() {
+float_t TeenyGPSConnect::getLongitude() {
   return data.longitude;
 }
 int32_t TeenyGPSConnect::getAltitude() {
@@ -340,8 +410,14 @@ int32_t TeenyGPSConnect::getAltitude() {
 int32_t TeenyGPSConnect::getAltitudeMSL() {
   return data.altitudeMSL;
 }
-float TeenyGPSConnect::getHeading() {
+float_t TeenyGPSConnect::getHeading() {
   return data.heading;
+}
+int32_t TeenyGPSConnect::getDistance() {
+  return data.distance;
+}
+int16_t TeenyGPSConnect::getBearing() {
+  return data.bearing;
 }
 
 /********************************************************************/
@@ -349,13 +425,13 @@ uint8_t TeenyGPSConnect::getNumSV() {
   return data.numSV;
 }
 uint32_t TeenyGPSConnect::getHAccEst() {
-  return data.hacc;
+  return data.hAcc;
 }
 uint32_t TeenyGPSConnect::getVAccEst() {
-  return data.vacc;
+  return data.vAcc;
 }
-float TeenyGPSConnect::getPDOP() {
-  return data.pdop;
+float_t TeenyGPSConnect::getPDOP() {
+  return data.pDOP;
 }
 bool TeenyGPSConnect::getInvalidLlh() {
   return data.invalidLlh;
@@ -388,6 +464,62 @@ uint8_t TeenyGPSConnect::getSecond() {
 }
 
 /********************************************************************/
+// UBX-NAV-SAT
+/********************************************************************/
+bool TeenyGPSConnect::getNAVSAT() {
+  // getNAVSAT will return true if there actually is fresh
+  // navigation satellite data.
+  if(gnss.getNAVSAT()) {
+    time_getnavsat.restart();
+    gnss.getNAVSATInfo(navsatInfo);
+    return true;
+  }
+  // else lost packet(s)
+  if(time_getnavsat.isExpired()) {
+    navsatInfo.validPacket = false;
+    navsatInfo.numSvs = 0;
+    navsatInfo.numSvsHealthy = 0;
+    navsatInfo.numSvsUsed = 0;
+  }
+  return false;
+}
+
+/********************************************************************/
+bool TeenyGPSConnect::pollNAVSAT() {
+  if(gnss.pollNAVSAT()) {
+    gnss.getNAVSATInfo(navsatInfo);
+    return true;
+  }
+  return false;
+}
+
+
+/********************************************************************/
+void TeenyGPSConnect::getNAVSATPacket(uint8_t *packet) {
+  gnss.getNAVSATPacket(packet);
+}
+
+/********************************************************************/
+uint16_t TeenyGPSConnect::getNAVSATPacketLength() {
+  return gnss.getNAVSATPacketLength();
+}
+
+/********************************************************************/
+void TeenyGPSConnect::getNAVSATInfo(ubloxNAVSATInfo_t &info_) {
+  info_ = navsatInfo;
+}
+
+/********************************************************************/
+uint8_t TeenyGPSConnect::getLostRxPacketCount() {
+  return gnss.getLostRxPacketCount();
+}
+
+/********************************************************************/
+uint8_t TeenyGPSConnect::getUnknownRxPacketCount() {
+  return gnss.getUnknownRxPacketCount();
+}
+
+/********************************************************************/
 // UBX-NAV-STATUS
 /********************************************************************/
 bool TeenyGPSConnect::getNAVSTATUS() {
@@ -414,6 +546,7 @@ bool TeenyGPSConnect::getNAVSTATUS() {
 /********************************************************************/
 bool TeenyGPSConnect::pollNAVSTATUS() {
   if(gnss.pollNAVSTATUS()) {
+    gnss.getNAVSTATUSInfo(navstatusInfo);
     return true;
   }
   return false;
@@ -436,47 +569,19 @@ void TeenyGPSConnect::resetNAVSTATUSInfo() {
 }
 
 /********************************************************************/
-// UBX-NAV-SAT
+// Lost packet count
 /********************************************************************/
-bool TeenyGPSConnect::getNAVSAT() {
-  // getNAVSAT will return true if there actually is fresh
-  // navigation satellite data.
-  if(gnss.getNAVSAT()) {
-    time_getnavsat.restart();
-    gnss.getNAVSATInfo(navsatInfo);
-    return true;
-  }
-  // else lost packet(s)
-  if(time_getnavsat.isExpired()) {
-    navsatInfo.validPacket = false;
-    navsatInfo.numSvs = 0;
-    navsatInfo.numSvsHealthy = 0;
-    navsatInfo.numSvsUsed = 0;
-  }
-  return false;
+uint8_t TeenyGPSConnect::getLostNAVPVTPacketCount() {
+  return gnss.getLostNAVPVTPacketCount();
 }
 
 /********************************************************************/
-bool TeenyGPSConnect::pollNAVSAT() {
-  if(gnss.pollNAVSAT()) {
-    return true;
-  }
-  return false;
-}
-
-
-/********************************************************************/
-void TeenyGPSConnect::getNAVSATPacket(uint8_t *packet) {
-  gnss.getNAVSATPacket(packet);
+uint8_t TeenyGPSConnect::getLostNAVSATPacketCount() {
+  return gnss.getLostNAVSATPacketCount();
 }
 
 /********************************************************************/
-uint16_t TeenyGPSConnect::getNAVSATPacketLength() {
-  return gnss.getNAVSATPacketLength();
-}
-
-/********************************************************************/
-void TeenyGPSConnect::getNAVSATInfo(ubloxNAVSATInfo_t &info_) {
-  info_ = navsatInfo;
+uint8_t TeenyGPSConnect::getLostNAVSTATUSPacketCount() {
+  return gnss.getLostNAVSTATUSPacketCount();
 }
 

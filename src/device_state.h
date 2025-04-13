@@ -15,22 +15,33 @@ enum device_mode_t : int16_t {
 };
 
 /********************************************************************/
+// EMULATOR UBX Packet Source
+enum emuUbxPktSource_t : uint8_t {
+  EMU_PGMINPUT = 0,
+  EMU_SDCINPUT
+};
+
+/********************************************************************/
 // Device State
 typedef struct {
   int16_t  TIMEZONE = 0;
   int16_t  DEVICE_MODE = DM_IDLE;
   uint8_t  GPSRESET = GPS_NORESET;
   uint8_t  UBXPKTLOGMODE = UBXPKTLOG_ALL;
-  uint8_t  GPSLOGMODE = GPSLOG_KML;
+  bool     GPSLOG_GPX = false;
+  bool     GPSLOG_KML = true;
+  bool     GPSLOG_CSV = false;
   uint8_t  GPSCALIBRATIONPERIOD = 12;
-  uint8_t  EMUL_UBXPKTSOURCE = EMU_PGMINPUT;
-  uint8_t  EMUL_NUMCOLDSTARTPACKETS = 10;
-  uint8_t  DISPLAYBRIGHTNESS = 50;
+  uint8_t  EMU_UBXPKTSOURCE = EMU_PGMINPUT;
+  uint8_t  EMU_NUMCOLDSTARTPACKETS = 10;
+  bool     EMU_UBXPKTLOOPENABLE = false;
+  uint8_t  DISPLAYBRIGHTNESS = 100;
   uint8_t  DISPLAYTIMEOUT = 10;
   bool     STATUSLED = true;
-  uint8_t  spare00;
-  uint8_t  spare01;
-  uint8_t  spare02;
+  bool     DEBUGLOOPTIMING = false;
+  bool     spare00;
+  bool     spare01;
+  bool     spare02;
 } device_state_t;
 device_state_t deviceState_defaults;
 device_state_t deviceState;
@@ -39,7 +50,7 @@ device_state_t deviceState;
 // KVS
 /********************************************************************/
 #include "TeenyKVS.h"
-uint8_t deviceStateKVSArray[256];
+uint8_t deviceStateKVSArray[1024];
 TeenyKVSArray deviceStateKVS(deviceStateKVSArray, sizeof(deviceStateKVSArray));
 
 /********************************************************************/
@@ -59,17 +70,26 @@ bool writeDeviceStateKVS() {
   rc = deviceStateKVS.set("UBXPKTLOGMODE", strlen("UBXPKTLOGMODE"),
                           (uint8_t*)&deviceState.UBXPKTLOGMODE, sizeof(deviceState.UBXPKTLOGMODE));
   if(!rc) return false;
-  rc = deviceStateKVS.set("GPSLOGMODE", strlen("GPSLOGMODE"),
-                          (uint8_t*)&deviceState.GPSLOGMODE, sizeof(deviceState.GPSLOGMODE));
+  rc = deviceStateKVS.set("GPSLOG_GPX", strlen("GPSLOG_GPX"),
+                          (uint8_t*)&deviceState.GPSLOG_GPX, sizeof(deviceState.GPSLOG_GPX));
+  if(!rc) return false;
+  rc = deviceStateKVS.set("GPSLOG_KML", strlen("GPSLOG_KML"),
+                          (uint8_t*)&deviceState.GPSLOG_KML, sizeof(deviceState.GPSLOG_KML));
+  if(!rc) return false;
+  rc = deviceStateKVS.set("GPSLOG_CSV", strlen("GPSLOG_CSV"),
+                          (uint8_t*)&deviceState.GPSLOG_CSV, sizeof(deviceState.GPSLOG_CSV));
   if(!rc) return false;
   rc = deviceStateKVS.set("GPSCALIBRATIONPERIOD", strlen("GPSCALIBRATIONPERIOD"),
                           (uint8_t*)&deviceState.GPSCALIBRATIONPERIOD, sizeof(deviceState.GPSCALIBRATIONPERIOD));
   if(!rc) return false;
-  rc = deviceStateKVS.set("EMUL_UBXPKTSOURCE", strlen("EMUL_UBXPKTSOURCE"),
-                          (uint8_t*)&deviceState.EMUL_UBXPKTSOURCE, sizeof(deviceState.EMUL_UBXPKTSOURCE));
+  rc = deviceStateKVS.set("EMU_UBXPKTSOURCE", strlen("EMU_UBXPKTSOURCE"),
+                          (uint8_t*)&deviceState.EMU_UBXPKTSOURCE, sizeof(deviceState.EMU_UBXPKTSOURCE));
   if(!rc) return false;
-  rc = deviceStateKVS.set("EMUL_NUMCOLDSTARTPACKETS", strlen("EMUL_NUMCOLDSTARTPACKETS"),
-                          (uint8_t*)&deviceState.EMUL_NUMCOLDSTARTPACKETS, sizeof(deviceState.EMUL_NUMCOLDSTARTPACKETS));
+  rc = deviceStateKVS.set("EMU_NUMCOLDSTARTPACKETS", strlen("EMU_NUMCOLDSTARTPACKETS"),
+                          (uint8_t*)&deviceState.EMU_NUMCOLDSTARTPACKETS, sizeof(deviceState.EMU_NUMCOLDSTARTPACKETS));
+  if(!rc) return false;
+  rc = deviceStateKVS.set("EMU_UBXPKTLOOPENABLE", strlen("EMU_UBXPKTLOOPENABLE"),
+                          (uint8_t*)&deviceState.EMU_UBXPKTLOOPENABLE, sizeof(deviceState.EMU_UBXPKTLOOPENABLE));
   if(!rc) return false;
   rc = deviceStateKVS.set("DISPLAYBRIGHTNESS", strlen("DISPLAYBRIGHTNESS"),
                           (uint8_t*)&deviceState.DISPLAYBRIGHTNESS, sizeof(deviceState.DISPLAYBRIGHTNESS));
@@ -79,6 +99,9 @@ bool writeDeviceStateKVS() {
   if(!rc) return false;
   rc = deviceStateKVS.set("STATUSLED", strlen("STATUSLED"),
                           (uint8_t*)&deviceState.STATUSLED, sizeof(deviceState.STATUSLED));
+  if(!rc) return false;
+  rc = deviceStateKVS.set("DEBUGLOOPTIMING", strlen("DEBUGLOOPTIMING"),
+                          (uint8_t*)&deviceState.DEBUGLOOPTIMING, sizeof(deviceState.DEBUGLOOPTIMING));
   if(!rc) return false;
   return true;
 }
@@ -98,17 +121,26 @@ bool readDeviceStateKVS() {
   rc = deviceStateKVS.get("UBXPKTLOGMODE", strlen("UBXPKTLOGMODE"),
                           (uint8_t*)&deviceState.UBXPKTLOGMODE, sizeof(deviceState.UBXPKTLOGMODE));
   if(!rc) return false;
-  rc = deviceStateKVS.get("GPSLOGMODE", strlen("GPSLOGMODE"),
-                          (uint8_t*)&deviceState.GPSLOGMODE, sizeof(deviceState.GPSLOGMODE));
+  rc = deviceStateKVS.get("GPSLOG_GPX", strlen("GPSLOG_GPX"),
+                          (uint8_t*)&deviceState.GPSLOG_GPX, sizeof(deviceState.GPSLOG_GPX));
+  if(!rc) return false;
+  rc = deviceStateKVS.get("GPSLOG_KML", strlen("GPSLOG_KML"),
+                          (uint8_t*)&deviceState.GPSLOG_KML, sizeof(deviceState.GPSLOG_KML));
+  if(!rc) return false;
+  rc = deviceStateKVS.get("GPSLOG_CSV", strlen("GPSLOG_CSV"),
+                          (uint8_t*)&deviceState.GPSLOG_CSV, sizeof(deviceState.GPSLOG_CSV));
   if(!rc) return false;
   rc = deviceStateKVS.get("GPSCALIBRATIONPERIOD", strlen("GPSCALIBRATIONPERIOD"),
                           (uint8_t*)&deviceState.GPSCALIBRATIONPERIOD, sizeof(deviceState.GPSCALIBRATIONPERIOD));
   if(!rc) return false;
-  rc = deviceStateKVS.get("EMUL_UBXPKTSOURCE", strlen("EMUL_UBXPKTSOURCE"),
-                          (uint8_t*)&deviceState.EMUL_UBXPKTSOURCE, sizeof(deviceState.EMUL_UBXPKTSOURCE));
+  rc = deviceStateKVS.get("EMU_UBXPKTSOURCE", strlen("EMU_UBXPKTSOURCE"),
+                          (uint8_t*)&deviceState.EMU_UBXPKTSOURCE, sizeof(deviceState.EMU_UBXPKTSOURCE));
   if(!rc) return false;
-  rc = deviceStateKVS.get("EMUL_NUMCOLDSTARTPACKETS", strlen("EMUL_NUMCOLDSTARTPACKETS"),
-                          (uint8_t*)&deviceState.EMUL_NUMCOLDSTARTPACKETS, sizeof(deviceState.EMUL_NUMCOLDSTARTPACKETS));
+  rc = deviceStateKVS.get("EMU_NUMCOLDSTARTPACKETS", strlen("EMU_NUMCOLDSTARTPACKETS"),
+                          (uint8_t*)&deviceState.EMU_NUMCOLDSTARTPACKETS, sizeof(deviceState.EMU_NUMCOLDSTARTPACKETS));
+  if(!rc) return false;
+  rc = deviceStateKVS.get("EMU_UBXPKTLOOPENABLE", strlen("EMU_UBXPKTLOOPENABLE"),
+                          (uint8_t*)&deviceState.EMU_UBXPKTLOOPENABLE, sizeof(deviceState.EMU_UBXPKTLOOPENABLE));
   if(!rc) return false;
   rc = deviceStateKVS.get("DISPLAYBRIGHTNESS", strlen("DISPLAYBRIGHTNESS"),
                           (uint8_t*)&deviceState.DISPLAYBRIGHTNESS, sizeof(deviceState.DISPLAYBRIGHTNESS));
@@ -119,5 +151,9 @@ bool readDeviceStateKVS() {
   rc = deviceStateKVS.get("STATUSLED", strlen("STATUSLED"),
                           (uint8_t*)&deviceState.STATUSLED, sizeof(deviceState.STATUSLED));
   if(!rc) return false;
+  rc = deviceStateKVS.get("DEBUGLOOPTIMING", strlen("DEBUGLOOPTIMING"),
+                          (uint8_t*)&deviceState.DEBUGLOOPTIMING, sizeof(deviceState.DEBUGLOOPTIMING));
+  if(!rc) return false;
   return true;
 }
+

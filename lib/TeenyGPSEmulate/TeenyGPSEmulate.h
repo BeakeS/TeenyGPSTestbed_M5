@@ -139,6 +139,7 @@ typedef struct {
   uint8_t  payload[TGPSE_UBX_NAV_PVT_PAYLOADLENGTH];
   uint8_t  checksumA;
   uint8_t  checksumB;
+  bool     valid;
 } ubxNAVPVTPacket_t;
 
 /********************************************************************/
@@ -174,30 +175,6 @@ typedef struct {
 } ubxNAVPVTInfo_t;
 
 /********************************************************************/
-// UBX NAVSTATUS Packet Struct
-/********************************************************************/
-typedef struct {
-  uint8_t  synch1        = TGPSE_UBX_SYNCH_1;
-  uint8_t  synch2        = TGPSE_UBX_SYNCH_2;
-  uint8_t  messageClass  = TGPSE_UBX_CLASS_NAV;
-  uint8_t  messageID     = TGPSE_UBX_NAV_STATUS;
-  uint16_t payloadLength = TGPSE_UBX_NAV_STATUS_PAYLOADLENGTH;
-  uint8_t  payload[TGPSE_UBX_NAV_STATUS_PAYLOADLENGTH];
-  uint8_t  checksumA;
-  uint8_t  checksumB;
-} ubxNAVSTATUSPacket_t;
-
-/********************************************************************/
-// UBX NAVSTATUS Info Struct
-/********************************************************************/
-typedef struct {
-  uint8_t  gpsFix;
-  bool     gpsFixOk;
-  uint8_t  psmState;
-  uint8_t  spoofDetState;
-} ubxNAVSTATUSInfo_t;
-
-/********************************************************************/
 // UBX NAVSAT Packet Struct
 /********************************************************************/
 typedef struct {
@@ -209,6 +186,7 @@ typedef struct {
   uint8_t  payload[TGPSE_UBX_NAV_SAT_MAXPAYLOADLENGTH];
   uint8_t  checksumA;
   uint8_t  checksumB;
+  bool     valid;
 } ubxNAVSATPacket_t;
 
 /********************************************************************/
@@ -220,6 +198,31 @@ typedef struct {
   uint8_t  pad00b;
   uint8_t  pad00c;
 } ubxNAVSATInfo_t;
+
+/********************************************************************/
+// UBX NAVSTATUS Packet Struct
+/********************************************************************/
+typedef struct {
+  uint8_t  synch1        = TGPSE_UBX_SYNCH_1;
+  uint8_t  synch2        = TGPSE_UBX_SYNCH_2;
+  uint8_t  messageClass  = TGPSE_UBX_CLASS_NAV;
+  uint8_t  messageID     = TGPSE_UBX_NAV_STATUS;
+  uint16_t payloadLength = TGPSE_UBX_NAV_STATUS_PAYLOADLENGTH;
+  uint8_t  payload[TGPSE_UBX_NAV_STATUS_PAYLOADLENGTH];
+  uint8_t  checksumA;
+  uint8_t  checksumB;
+  bool     valid;
+} ubxNAVSTATUSPacket_t;
+
+/********************************************************************/
+// UBX NAVSTATUS Info Struct
+/********************************************************************/
+typedef struct {
+  uint8_t  gpsFix;
+  bool     gpsFixOk;
+  uint8_t  psmState;
+  uint8_t  spoofDetState;
+} ubxNAVSTATUSInfo_t;
 
 /********************************************************************/
 // UBX Packet Payload Defaults
@@ -279,12 +282,12 @@ const uint8_t TGPSE_UBX_NAV_PVT_COLD_PAYLOAD[TGPSE_UBX_NAV_PVT_PAYLOADLENGTH] = 
   0xE0,0x4A,0x23,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
   0x00,0x00
 };
+const uint8_t TGPSE_UBX_NAV_SAT_COLD_PAYLOAD[TGPSE_UBX_NAV_SAT_MINPAYLOADLENGTH] = {
+  0x00,0x00,0x00,0x00,0x01,0x00,0x00,0x00
+};
 const uint8_t TGPSE_UBX_NAV_STATUS_COLD_PAYLOAD[TGPSE_UBX_NAV_STATUS_PAYLOADLENGTH] = {
   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
   0x00,0x00,0x00,0x00,0x00,0x00
-};
-const uint8_t TGPSE_UBX_NAV_SAT_COLD_PAYLOAD[TGPSE_UBX_NAV_SAT_MINPAYLOADLENGTH] = {
-  0x00,0x00,0x00,0x00,0x01,0x00,0x00,0x00
 };
 
 /********************************************************************/
@@ -306,11 +309,11 @@ typedef struct {
   uint8_t  pad03a;
   uint8_t  pad03b;
   uint8_t  pad03c;
-  uint8_t  autoNAVSTATUSRate = 0;
+  uint8_t  autoNAVSATRate = 0;
   uint8_t  pad04a;
   uint8_t  pad04b;
   uint8_t  pad04c;
-  uint8_t  autoNAVSATRate = 0;
+  uint8_t  autoNAVSTATUSRate = 0;
   uint8_t  pad05a;
   uint8_t  pad05b;
   uint8_t  pad05c;
@@ -333,13 +336,19 @@ class TeenyGPSEmulate {
     bool init(HardwareSerial &serialPort_,
               uint32_t baudRate_,
               tgpse_ubx_module_type_t ubxModuleType_,
-              uint8_t (*fetch)() = nullptr);
+              bool ubxPktLoopEnable_,
+              bool (*fetch)(uint8_t* value) = nullptr);
     bool reset();
+
+    // Emulation status
+    bool isRunning();
 
     // Methods for process incoming commands/requests from host
     void    tick(); // can do in ISR - rate depends on serial read hardware queue
     void    processIncomingPacket(); // do not call in ISR - uses serial read and write
     uint8_t getLostRxPacketCount();
+    uint8_t getProcessedRxPacketCount();
+    uint8_t getUnsupportedRxPacketCount();
 
     // Methods to access internal state
     uint32_t        getBaudRate();
@@ -347,13 +356,15 @@ class TeenyGPSEmulate {
     uint16_t        getMeasurementRate();
     uint16_t        getNavigationRate();
     uint8_t         getAutoNAVPVTRate();
-    uint8_t         getAutoNAVSTATUSRate();
     uint8_t         getAutoNAVSATRate();
+    uint8_t         getAutoNAVSTATUSRate();
 
     // Methods for manual and auto NAVPVT packet transmission
     uint32_t        getNAVPVTTransmissionRate();
     bool            isNAVPVTPacketRequested();
     uint8_t         getLostNAVPVTRequestCount();
+    uint8_t         getLostNAVPVTPacketCount();
+    uint8_t         getSentNAVPVTPacketCount();
     void            setAutoNAVPVTRate(uint8_t rate=1); // Debug use only //
     bool            isAutoNAVPVTEnabled();
     ubxNAVPVTInfo_t getNAVPVTPacketInfo();
@@ -362,25 +373,32 @@ class TeenyGPSEmulate {
     void            unsetNAVPVTPacketDateValidFlag();
     void            unsetNAVPVTPacketTimeValidFlag();
     void            unsetNAVPVTPacketLocationValidFlag();
+    bool            isNAVPVTPacketValid();
     bool            sendNAVPVTPacket(); // do not call in ISR - uses serial write and sdcard
-
-    // Methods for manual and auto NAVSTATUS packet transmission
-    uint32_t           getNAVSTATUSTransmissionRate();
-    bool               isNAVSTATUSPacketRequested();
-    uint8_t            getLostNAVSTATUSRequestCount();
-    void               setAutoNAVSTATUSRate(uint8_t rate=1); // Debug use only //
-    bool               isAutoNAVSTATUSEnabled();
-    ubxNAVSTATUSInfo_t getNAVSTATUSPacketInfo();
-    bool               sendNAVSTATUSPacket(); // do not call in ISR - uses serial write and sdcard
 
     // Methods for manual and auto NAVSAT packet transmission
     uint32_t        getNAVSATTransmissionRate();
     bool            isNAVSATPacketRequested();
     uint8_t         getLostNAVSATRequestCount();
+    uint8_t         getLostNAVSATPacketCount();
+    uint8_t         getSentNAVSATPacketCount();
     void            setAutoNAVSATRate(uint8_t rate=10); // Debug use only //
     bool            isAutoNAVSATEnabled();
     ubxNAVSATInfo_t getNAVSATPacketInfo();
+    bool            isNAVSATPacketValid();
     bool            sendNAVSATPacket(); // do not call in ISR - uses serial write and sdcard
+
+    // Methods for manual and auto NAVSTATUS packet transmission
+    uint32_t           getNAVSTATUSTransmissionRate();
+    bool               isNAVSTATUSPacketRequested();
+    uint8_t            getLostNAVSTATUSRequestCount();
+    uint8_t            getLostNAVSTATUSPacketCount();
+    uint8_t            getSentNAVSTATUSPacketCount();
+    void               setAutoNAVSTATUSRate(uint8_t rate=1); // Debug use only //
+    bool               isAutoNAVSTATUSEnabled();
+    ubxNAVSTATUSInfo_t getNAVSTATUSPacketInfo();
+    bool               isNAVSTATUSPacketValid();
+    bool               sendNAVSTATUSPacket(); // do not call in ISR - uses serial write and sdcard
 
     // Methods for setting cold and emulation loop output packets
     void            setEmuColdOutputPackets();
@@ -391,57 +409,69 @@ class TeenyGPSEmulate {
     ubxPacket_t          receivedPacket;
     ubxPacket_t          responsePacket;
     ubxPacket_t          acknowledgePacket;
-    ubxPacket_t          unknownPacket;
+    ubxPacket_t          unsupportedPacket;
     ubxPacket_t          ubxLoopPacket;
     ubxNAVPVTPacket_t    ubxNAVPVTPacket;
     ubxNAVPVTInfo_t      ubxNAVPVTInfo;
-    ubxNAVSTATUSPacket_t ubxNAVSTATUSPacket;
-    ubxNAVSTATUSInfo_t   ubxNAVSTATUSInfo;
     ubxNAVSATPacket_t    ubxNAVSATPacket;
     ubxNAVSATInfo_t      ubxNAVSATInfo;
+    ubxNAVSTATUSPacket_t ubxNAVSTATUSPacket;
+    ubxNAVSTATUSInfo_t   ubxNAVSTATUSInfo;
 
   private:
 
+    bool restart(HardwareSerial &serialPort_,
+                 uint32_t baudRate_,
+                 tgpse_ubx_module_type_t ubxModuleType_,
+                 bool ubxPktLoopEnable_) ;
     HardwareSerial *serialPort;
     tgpse_ubx_module_type_t ubxModuleType;
-    uint8_t  (*ubxFetch)();
+    bool     ubxPktLoopEnable;
+    bool     (*ubxFetch)(uint8_t* value);
     emulatorSettings_t emulatorSettings;
     emulatorSettings_t emulatorSettings_default;
     uint32_t requestedBaudRate;
     uint8_t  lostRxPacketCount;
+    uint8_t  processedRxPacketCount;
+    uint8_t  unsupportedRxPacketCount;
     void     processIncomingByte(uint8_t incomingByte);
     void     buildAcknowledgePacket(uint8_t messageClass, uint8_t messageID, bool ack);
-    void     sendPackets();
-    void     sendPacket(ubxPacket_t *pkt);
+    void     sendRspAckPackets();
+    void     sendRspAckPacket(ubxPacket_t *pkt);
 
     bool     requestNAVPVTPacket;
     uint8_t  lostNAVPVTRequestCount;
-    bool     requestNAVSTATUSPacket;
-    uint8_t  lostNAVSTATUSRequestCount;
+    uint8_t  lostNAVPVTPacketCount;
+    uint8_t  sentNAVPVTPacketCount;
     bool     requestNAVSATPacket;
     uint8_t  lostNAVSATRequestCount;
+    uint8_t  lostNAVSATPacketCount;
+    uint8_t  sentNAVSATPacketCount;
+    bool     requestNAVSTATUSPacket;
+    uint8_t  lostNAVSTATUSRequestCount;
+    uint8_t  lostNAVSTATUSPacketCount;
+    uint8_t  sentNAVSTATUSPacketCount;
 
-    uint8_t  readUBXLoopByte();
+    uint8_t  readUBXLoopByte(bool updateChecksum=false);
     bool     processUBXLoopPacket();
     uint32_t ubxLoopPacketIndex;
-    uint16_t getUBXLoopPacketLength();
     uint32_t getUBXLoopPacketTimeStamp();
     bool     assignUBXLoopOutputPacket();
 
     bool     isNAVPVTPacket();
     bool     setNAVPVTPacket();
     void     setNAVPVTColdPacket();
-    bool     isNAVSTATUSPacket();
-    bool     setNAVSTATUSPacket();
-    void     setNAVSTATUSColdPacket();
     bool     isNAVSATPacket();
     bool     setNAVSATPacket();
     void     setNAVSATColdPacket();
+    bool     isNAVSTATUSPacket();
+    bool     setNAVSTATUSPacket();
+    void     setNAVSTATUSColdPacket();
 
     void     calcChecksum(ubxPacket_t *pkt);
     void     calcChecksum(ubxNAVPVTPacket_t *pkt);
-    void     calcChecksum(ubxNAVSTATUSPacket_t *pkt);
     void     calcChecksum(ubxNAVSATPacket_t *pkt);
+    void     calcChecksum(ubxNAVSTATUSPacket_t *pkt);
 
 };
 

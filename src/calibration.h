@@ -126,7 +126,7 @@ void satCalibration_tick() {
   switch(satcalStep) {
     case SC_GPS_START:
       if(gps.setGNSSConfigState(satcalGNSSConfigList.GPS) &&
-         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
+         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 10, 1)) {
         satcalStep = SC_GPS;
         satcalStepStartTime = millis();
         satcalTTF2DF = 0;
@@ -150,7 +150,7 @@ void satCalibration_tick() {
       break;
     case SC_GAL_START:
       if(gps.setGNSSConfigState(satcalGNSSConfigList.Galileo) &&
-         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
+         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 10, 1)) {
         satcalStep = SC_GAL;
         satcalStepStartTime = millis();
         satcalTTF2DF = 0;
@@ -174,7 +174,7 @@ void satCalibration_tick() {
       break;
     case SC_BDB1_START:
       if(gps.setGNSSConfigState(satcalGNSSConfigList.BeiDou_B1) &&
-         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
+         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 10, 1)) {
         satcalStep = SC_BDB1;
         satcalStepStartTime = millis();
         satcalTTF2DF = 0;
@@ -202,7 +202,7 @@ void satCalibration_tick() {
       break;
     case SC_BDB1C_START:
       if(gps.setGNSSConfigState(satcalGNSSConfigList.BeiDou_B1C) &&
-         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
+         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 10, 1)) {
         satcalStep = SC_BDB1C;
         satcalStepStartTime = millis();
         satcalTTF2DF = 0;
@@ -226,7 +226,7 @@ void satCalibration_tick() {
       break;
     case SC_GLO_START:
       if(gps.setGNSSConfigState(satcalGNSSConfigList.GLONASS) &&
-         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
+         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 10, 1)) {
         satcalStep = SC_GLO;
         satcalStepStartTime = millis();
         satcalTTF2DF = 0;
@@ -250,7 +250,7 @@ void satCalibration_tick() {
       break;
     case SC_FACTORY_START:
       if(gps.setGNSSConfigState(satcalGNSSConfigState_factory) &&
-         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
+         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 10, 1)) {
         satcalGNSSConfigState_factory = gps.getGNSSConfigState();
         satcalStep = SC_FACTORY;
         satcalStepStartTime = millis();
@@ -281,7 +281,7 @@ void satCalibration_tick() {
       break;
     case SC_CURRENT_START:
       if(gps.setGNSSConfigState(satcalGNSSConfigState_config) &&
-         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 1, 10)) {
+         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 10, 1)) {
         satcalStep = SC_CURRENT;
         satcalStepStartTime = millis();
         satcalTTF2DF = 0;

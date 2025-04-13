@@ -11,10 +11,6 @@
 
 #include <Arduino.h>
 
-// When defined, measures and displays max loop iteration time
-//#define DEBUG_LOOP_TIMING
-//#define DEBUG_LOOP_PERIOD 2500
-
 /********************************************************************/
 // Reset
 void device_reset() {
@@ -40,17 +36,21 @@ HardwareSerial *gpsSerial;
 #include "compass.h"
 
 /********************************************************************/
+// Device State
+#include "device_state.h"
+
+/********************************************************************/
 // Emulator
 HardwareSerial *emulatorSerial;
 #include "emulator.h"
 
 /********************************************************************/
-// Device State
-#include "device_state.h"
-
-/********************************************************************/
 // SD Card
 #include "sdcard.h"
+
+/********************************************************************/
+// UBX Logger
+#include "logger.h"
 
 /********************************************************************/
 // Display
@@ -209,30 +209,15 @@ void loop() {
 
   uint32_t _nowMS = millis();
 
-#ifdef DEBUG_LOOP_TIMING
-  static uint32_t max_loop_check=_nowMS;
-  static uint32_t min_loop_time=999;
-  static uint32_t max_loop_time=0;
-  static uint32_t sum_loop_time=0;
-  static uint32_t sum_loop_count=0;
-#endif
-
   // Update clock
   rtc_datetime_t _rtcTime = rtc.getRTCTime(); // get the RTC
   uint32_t _clockTime = (uint32_t)(_rtcTime.hour*3600) + (uint32_t)(_rtcTime.minute*60) + _rtcTime.second;
   static uint32_t _prevClockTime = 86400; // This is 24hr rollover seconds so it will never match _clockTime
   bool _clockTick_1sec = false;
-  static uint8_t _clockTick_1sec_count = 0;
-  bool _clockTick_10sec = false;
   if(_prevClockTime != _clockTime) {
     displayRefresh = true;
     _prevClockTime = _clockTime;
     _clockTick_1sec = true;
-    _clockTick_1sec_count++;
-    if(_clockTick_1sec_count >= 10) {
-      _clockTick_1sec_count = 0;
-      _clockTick_10sec = true;
-    }
   }
 
   // Update device based on mode
@@ -247,79 +232,7 @@ void loop() {
       }
       break;
     case DM_GPSLOGR:
-      if(gps.getNAVPVT()) {
-        if((!rtc.isValid()) && gps.isDateValid() && gps.isTimeValid()) {
-          rtc.setRTCTime(gps.getYear(), gps.getMonth(), gps.getDay(),
-                         gps.getHour(), gps.getMinute(), gps.getSecond());
-        }
-        if(ubxLoggingInProgress &&
-           ((deviceState.UBXPKTLOGMODE == UBXPKTLOG_NAVPVT) ||
-            (deviceState.UBXPKTLOGMODE == UBXPKTLOG_ALL))) {
-          // UBX packet logging
-          uint8_t navpvtPacket[UBX_NAV_PVT_PACKETLENGTH];
-          gps.getNAVPVTPacket(navpvtPacket);
-          sdcard_writeUBXLoggingFile(navpvtPacket, UBX_NAV_PVT_PACKETLENGTH);
-          ubxLoggingFileWriteCount++;
-          if(gps.isLocationValid()) ubxLoggingFileWriteValidCount++;
-        }
-        if(deviceState.GPSLOGMODE != GPSLOG_NONE) {
-          // GPS track logging
-          char _latStr[11];
-          dtostrf(gps.getLatitude(), -9, 6, _latStr);
-          char _lonStr[11];
-          dtostrf(gps.getLongitude(), -9, 6, _lonStr);
-          rtc_datetime_t dateTime;
-          dateTime.year   = gps.getYear();
-          dateTime.month  = gps.getMonth();
-          dateTime.day    = gps.getDay();
-          dateTime.hour   = gps.getHour();
-          dateTime.minute = gps.getMinute();
-          dateTime.second = gps.getSecond();
-          char* _itdStr = rtc.dateTimeToISO8601Str(dateTime);
-          // GPX track logging
-          if(deviceState.GPSLOGMODE == GPSLOG_GPX) {
-            // trkpt - "      <trkpt lat=\"45.4431641\" lon=\"-121.7295456\"><ele>122</ele><time>2001-06-02T00:18:15Z</time></trkpt>\n"
-            char _trkptStr[256];
-            sprintf(_trkptStr, "      <trkpt lat=\"%s\" lon=\"%s\"><ele>%d</ele><time>%sZ</time></trkpt>\n",
-                    _latStr, _lonStr, gps.getAltitude(), _itdStr);
-            sdcard_writeGPXLoggingFile((uint8_t*)_trkptStr, strlen(_trkptStr));
-          }
-          // KML track logging
-          if(deviceState.GPSLOGMODE == GPSLOG_KML) {
-            // trkpt - "      <when>2010-05-28T02:02:09Z</when>"
-            // trkpt - "      <gx:coord>-122.207881 37.371915 156.000000</gx:coord>"
-            char _trkptStr[256];
-            sprintf(_trkptStr, "      <when>%sZ</when>\n", _itdStr);
-            sdcard_writeKMLLoggingFile((uint8_t*)_trkptStr, strlen(_trkptStr));
-            sprintf(_trkptStr, "      <gx:coord>%s %s %d.000000</gx:coord>\n",
-                    _lonStr, _latStr, gps.getAltitude());
-            sdcard_writeKMLLoggingFile((uint8_t*)_trkptStr, strlen(_trkptStr));
-          }
-        }
-        displayRefresh = true;
-      } else if(gps.getNAVSTATUS()) {
-        if(ubxLoggingInProgress &&
-           ((deviceState.UBXPKTLOGMODE == UBXPKTLOG_NAVSTATUS) ||
-            (deviceState.UBXPKTLOGMODE == UBXPKTLOG_ALL))) {
-          // UBX packet logging
-          uint8_t navstatusPacket[UBX_NAV_STATUS_PACKETLENGTH];
-          gps.getNAVSTATUSPacket(navstatusPacket);
-          sdcard_writeUBXLoggingFile(navstatusPacket, UBX_NAV_STATUS_PACKETLENGTH);
-          ubxLoggingFileWriteCount++;
-          if(gps.isLocationValid()) ubxLoggingFileWriteValidCount++;
-        }
-        displayRefresh = true;
-      } else if(gps.getNAVSAT()) {
-        if(ubxLoggingInProgress &&
-           ((deviceState.UBXPKTLOGMODE == UBXPKTLOG_NAVSAT) ||
-            (deviceState.UBXPKTLOGMODE == UBXPKTLOG_ALL))) {
-          // UBX packet logging
-          uint8_t navsatPacket[UBX_NAV_SAT_MAXPACKETLENGTH];
-          gps.getNAVSATPacket(navsatPacket);
-          sdcard_writeUBXLoggingFile(navsatPacket, gps.getNAVSATPacketLength());
-          ubxLoggingFileWriteCount++;
-          if(gps.isLocationValid()) ubxLoggingFileWriteValidCount++;
-        }
+      if(logger_update()) {
         displayRefresh = true;
       }
       break;
@@ -363,68 +276,8 @@ void loop() {
       break;
     case DM_GPSEMU_M8:
     case DM_GPSEMU_M10:
-      if(emulatorEnabled) {
-        // Process host commands
-        emulator.processIncomingPacket();
-//*** NEED TO INCORPORATE TRANSMISSION RATE INTO sendNAVPVTPacket()
-//*** ALSO NEED TO FACTOR IN LOG RATE VS TRANSMISSION RATE
-//uint32_t getNAVPVTTransmissionRate();
-//uint32_t getNAVSATTransmissionRate();
-        uint8_t _ubxNAVPVTBuf[100];
-        ubxNAVPVTInfo_t _ubxNAVPVTInfo;
-        // Wait for loop to be enabled by auto* command or packet request
-        if(!emulatorLoopEnabled) {
-          if(emulator.isAutoNAVPVTEnabled() ||
-             emulator.isNAVPVTPacketRequested() ||
-             emulator.isAutoNAVSATEnabled() ||
-             emulator.isNAVSATPacketRequested()) {
-            emulatorLoopEnabled = true;
-          }
-        }
-        if(!emulatorLoopEnabled) break;
-        // Update loop event every second
-        if(_clockTick_1sec) {
-          if(emulatorColdStartPacketCount < deviceState.EMUL_NUMCOLDSTARTPACKETS) {
-            emulatorColdStartPacketCount++;
-            emulator.setEmuColdOutputPackets(); // Sets cold NAVPVT, NAVSTATUS, and NAVSAT packets
-            //statusLED.pulse(1);
-          } else {
-            emulator.setEmuLoopOutputPackets(); // Sets NAVPVT packet and possible adjacent NAVSAT packet
-            if(!rtc.isValid()) {
-              _ubxNAVPVTInfo = emulator.getNAVPVTPacketInfo();
-              if(_ubxNAVPVTInfo.dateValid && _ubxNAVPVTInfo.timeValid) {
-                rtc.setRTCTime(_ubxNAVPVTInfo.year, _ubxNAVPVTInfo.month, _ubxNAVPVTInfo.day,
-                               _ubxNAVPVTInfo.hour, _ubxNAVPVTInfo.minute, _ubxNAVPVTInfo.second);
-                _prevClockTime = (uint32_t)(_ubxNAVPVTInfo.hour*3600) +
-                                 (uint32_t)(_ubxNAVPVTInfo.minute*60) +
-                                 _ubxNAVPVTInfo.second;
-              }
-              _clockTick_1sec_count = 0;
-              _clockTick_10sec = true;
-              //statusLED.pulse(_ubxNAVPVTInfo.locationValid ? 2 : 1);
-            } else {
-              _ubxNAVPVTInfo = emulator.getNAVPVTPacketInfo();
-              emulator.setNAVPVTPacketDateTime(_rtcTime.year, _rtcTime.month, _rtcTime.day,
-                                               _rtcTime.hour, _rtcTime.minute, _rtcTime.second);
-              //statusLED.pulse(_ubxNAVPVTInfo.locationValid ? 2 : 1);
-            }
-          }
-        }
-        if((_clockTick_1sec && emulator.isAutoNAVPVTEnabled()) ||
-           emulator.isNAVPVTPacketRequested()) {
-          emulator.sendNAVPVTPacket();
-          displayRefresh = true;
-        }
-        if((_clockTick_1sec && emulator.isAutoNAVSTATUSEnabled()) ||
-           emulator.isNAVSTATUSPacketRequested()) {
-          emulator.sendNAVSTATUSPacket();
-          displayRefresh = true;
-        }
-        if((_clockTick_10sec && emulator.isAutoNAVSATEnabled()) ||
-           emulator.isNAVSATPacketRequested()) {
-          emulator.sendNAVSATPacket();
-          displayRefresh = true;
-        }
+      if(emulator_update()) {
+        displayRefresh = true;
       }
       break;
   }
@@ -440,25 +293,31 @@ void loop() {
     display_update();  // push sprite to display
   }
 
-#ifdef DEBUG_LOOP_TIMING
-  if(_nowMS-max_loop_check > DEBUG_LOOP_PERIOD) {
-    max_loop_check = _nowMS;
-    min_loop_time=999;
-    max_loop_time = 0;
-    sum_loop_time=0;
-    sum_loop_count=0;
+  // Check loop timing
+  static uint32_t max_loop_check=_nowMS;
+  static uint32_t min_loop_time=999;
+  static uint32_t max_loop_time=0;
+  static uint32_t sum_loop_time=0;
+  static uint32_t sum_loop_count=0;
+  if(deviceState.DEBUGLOOPTIMING) {
+    if(_nowMS-max_loop_check > 4000) {
+      max_loop_check = _nowMS;
+      min_loop_time=999;
+      max_loop_time = 0;
+      sum_loop_time=0;
+      sum_loop_count=0;
+    }
+    if(millis()-_nowMS > max_loop_time) {
+      min_loop_time = min(min_loop_time, millis()-_nowMS);
+      max_loop_time = max(max_loop_time, millis()-_nowMS);
+      sum_loop_time += millis()-_nowMS;
+      sum_loop_count++;
+      char _tempStr[22];
+      sprintf(_tempStr, "LoopTime %d/%d/%d",
+              min_loop_time, sum_loop_time/sum_loop_count, max_loop_time);
+      msg_update(_tempStr);
+    }
   }
-  if(millis()-_nowMS > max_loop_time) {
-    min_loop_time = min(min_loop_time, millis()-_nowMS);
-    max_loop_time = max(max_loop_time, millis()-_nowMS);
-    sum_loop_time += millis()-_nowMS;
-    sum_loop_count++;
-    char _tempStr[22];
-    sprintf(_tempStr, "LoopTime %d/%d/%d",
-            min_loop_time, sum_loop_time/sum_loop_count, max_loop_time);
-    msg_update(_tempStr);
-  }
-#endif
 
 }
 
