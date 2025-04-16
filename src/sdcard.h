@@ -253,8 +253,8 @@ bool sdcard_openCSVLoggingFile() {
   sdFile_csv = SD.open(csvLoggingFileName, FILE_WRITE);
   if(!sdFile_csv) return false;
   // write header
-  sdFile_csv.write((uint8_t*)"INDEX,GMT,VALIDLOC,LATITUDE,LONGITUDE,ALTITUDE,",
-                      strlen("INDEX,GMT,VALIDLOC,LATITUDE,LONGITUDE,ALTITUDE,"));
+  sdFile_csv.write((uint8_t*)"GMT,VALIDLOC,LATITUDE,LONGITUDE,ALTITUDE,",
+                      strlen("GMT,VALIDLOC,LATITUDE,LONGITUDE,ALTITUDE,"));
   sdFile_csv.write((uint8_t*)"HEADING,HACCEST,VACCEST,FIXTYPE,",
                       strlen("HEADING,HACCEST,VACCEST,FIXTYPE,"));
   sdFile_csv.write((uint8_t*)"NUMSV,PDOP,INVALIDL1H,DISTANCE,BEARING,",

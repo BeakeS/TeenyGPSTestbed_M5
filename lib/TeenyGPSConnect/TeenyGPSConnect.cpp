@@ -362,7 +362,7 @@ void TeenyGPSConnect::getNAVPVTInfo(ubloxNAVPVTInfo_t &info_) {
 
 /********************************************************************/
 void TeenyGPSConnect::calcDistanceBearing() {
-  if(data.curr_gnssFixOk && data.prev_gnssFixOk) {
+//if(data.curr_gnssFixOk && data.prev_gnssFixOk) {
     // staring point
     double_t lat1R = data.prev_latitude * (PI/180.0);
     double_t lon1R = data.prev_longitude * (PI/180.0);
@@ -379,10 +379,10 @@ void TeenyGPSConnect::calcDistanceBearing() {
     double_t bearingR = atan2(x, y);
     int16_t bearingD = round(57.295779 * bearingR);
     data.bearing = (bearingD + 360) % 360;
-  } else {
-    data.distance = -1;
-    data.bearing  = -1;
-  }
+//} else {
+//  data.distance = -1;
+//  data.bearing  = -1;
+//}
 }
 
 /********************************************************************/

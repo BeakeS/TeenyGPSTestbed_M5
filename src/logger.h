@@ -121,8 +121,8 @@ bool logger_update() {
         dtostrf(gps.getHeading(), -9, 6, _headingStr);
         char _pdopStr[11];
         dtostrf(gps.getPDOP(), -9, 6, _pdopStr);
-        sprintf(_navpvtCSVStr, "\n%d,%sZ,%s,%s,%s,%d,%s,%d,%d,%dD,%d,%s,%s,%d,%d",
-                csvLoggingFileWriteCount, _itdStr, (gps.isLocationValid() ? "TRUE" : "FALSE"),
+        sprintf(_navpvtCSVStr, "\n%sZ,%s,%s,%s,%d,%s,%d,%d,%dD,%d,%s,%s,%d,%d",
+                _itdStr, (gps.isLocationValid() ? "TRUE" : "FALSE"),
                 _latStr, _lonStr, gps.getAltitude(), _headingStr,
                 gps.getHAccEst(), gps.getVAccEst(), gps.getLocationFixType(),
                 gps.getNumSV(), _pdopStr, (gps.getInvalidLlh() ? "TRUE" : "FALSE"),
