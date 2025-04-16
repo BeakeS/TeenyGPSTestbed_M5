@@ -187,9 +187,9 @@ void display_refresh() {
         //displayPV.prt_str(_dispStr, 20, 0, 102);
         //sprintf(_dispStr, "LostPVTPkt:     %d", gps.getLostNAVPVTPacketCount());
         //displayPV.prt_str(_dispStr, 20, 0, 120);
-        //sprintf(_dispStr, "LostNAVSTATPkt: %d", gps.getLostNAVSTATUSPacketCount());
-        //displayPV.prt_str(_dispStr, 20, 0, 138);
         //sprintf(_dispStr, "LostNAVSATPkt:  %d", gps.getLostNAVSATPacketCount());
+        //displayPV.prt_str(_dispStr, 20, 0, 138);
+        //sprintf(_dispStr, "LostNAVSTATPkt: %d", gps.getLostNAVSTATUSPacketCount());
         //displayPV.prt_str(_dispStr, 20, 0, 156);
         }
       //sprintf(_dispStr, "P%XL%XD%XT%X",
@@ -241,9 +241,9 @@ void display_refresh() {
           displayPV.prt_str(_dispStr, 20, 0, 102);
           sprintf(_dispStr, "LostPVTPkt:     %d", gps.getLostNAVPVTPacketCount());
           displayPV.prt_str(_dispStr, 20, 0, 120);
-          sprintf(_dispStr, "LostNAVSTATPkt: %d", gps.getLostNAVSTATUSPacketCount());
-          displayPV.prt_str(_dispStr, 20, 0, 138);
           sprintf(_dispStr, "LostNAVSATPkt:  %d", gps.getLostNAVSATPacketCount());
+          displayPV.prt_str(_dispStr, 20, 0, 138);
+          sprintf(_dispStr, "LostNAVSTATPkt: %d", gps.getLostNAVSTATUSPacketCount());
           displayPV.prt_str(_dispStr, 20, 0, 156);
         }
         if(gpsLoggingInProgress) {
@@ -283,40 +283,6 @@ void display_refresh() {
       //        gps.isPacketValid(), gps.isLocationValid(),
       //        gps.isDateValid(), gps.isTimeValid());
       //displayPV.prt_str(_dispStr, 20, 0, 284);
-      } else if(menu.isMenuPageCurrent(menuPageGPSNavStat)) {
-        if(gps.isPacketValid()) {
-          // GPS Clock
-          displayPV.prt_str(getGPSISO8601DateTimeStr(), 19, 6, 20);
-        } else {
-          sprintf(_dispStr, "** NO NAVPVT DATA **");
-          displayPV.prt_str(_dispStr, 20, 0, 20);
-        }
-        // NAVSTATUS Data
-        ubloxNAVSTATUSInfo_t navstatusInfo;
-        gps.getNAVSTATUSInfo(navstatusInfo);
-        if(navstatusInfo.validPacket) {
-          sprintf(_dispStr, "   NAVSTATUS INFO");
-          displayPV.prt_str(_dispStr, 20, 0, 48);
-          sprintf(_dispStr, "GPSFixOK=%c", navstatusInfo.gpsFixOk ? 'T' : 'F');
-          displayPV.prt_str(_dispStr, 20, 0, 68);
-          sprintf(_dispStr, "GPSFix=%02X", navstatusInfo.gpsFix);
-          displayPV.prt_str(_dispStr, 20, 0, 86);
-          sprintf(_dispStr, "PSMState=%02X", navstatusInfo.psmState);
-          displayPV.prt_str(_dispStr, 20, 0, 104);
-          sprintf(_dispStr, "CarrSoln=%02d", navstatusInfo.carrSoln);
-          displayPV.prt_str(_dispStr, 20, 0, 122);
-          sprintf(_dispStr, "TTFF=%08d", navstatusInfo.ttff / 1000);
-          displayPV.prt_str(_dispStr, 20, 0, 140);
-          sprintf(_dispStr, "SpoofDetState=%d", navstatusInfo.spoofDetState);
-          displayPV.prt_str(_dispStr, 20, 0, 162);
-          sprintf(_dispStr, "SpoofIndicated=%d", navstatusInfo.spoofingIndicated);
-          displayPV.prt_str(_dispStr, 20, 0, 180);
-          sprintf(_dispStr, "MultiSpoofInd=%d", navstatusInfo.multipleSpoofingIndications);
-          displayPV.prt_str(_dispStr, 20, 0, 198);
-        } else {
-          sprintf(_dispStr, "**NO NAVSTAT DATA**");
-          displayPV.prt_str(_dispStr, 20, 0, 64);
-        }
       } else if(menu.isMenuPageCurrent(menuPageGPSNavSat)) {
         // GPS Clock
         if(gps.isPacketValid()) {
@@ -374,6 +340,40 @@ void display_refresh() {
       //        navsatInfo.validPacket, navsatInfo.numSvs,
       //        navsatInfo.numSvsHealthy, navsatInfo.numSvsUsed);
       //displayPV.prt_str(_dispStr, 20, 0, 284);
+      } else if(menu.isMenuPageCurrent(menuPageGPSNavStat)) {
+        if(gps.isPacketValid()) {
+          // GPS Clock
+          displayPV.prt_str(getGPSISO8601DateTimeStr(), 19, 6, 20);
+        } else {
+          sprintf(_dispStr, "** NO NAVPVT DATA **");
+          displayPV.prt_str(_dispStr, 20, 0, 20);
+        }
+        // NAVSTATUS Data
+        ubloxNAVSTATUSInfo_t navstatusInfo;
+        gps.getNAVSTATUSInfo(navstatusInfo);
+        if(navstatusInfo.validPacket) {
+          sprintf(_dispStr, "   NAVSTATUS INFO");
+          displayPV.prt_str(_dispStr, 20, 0, 48);
+          sprintf(_dispStr, "GPSFixOK=%c", navstatusInfo.gpsFixOk ? 'T' : 'F');
+          displayPV.prt_str(_dispStr, 20, 0, 68);
+          sprintf(_dispStr, "GPSFix=%02X", navstatusInfo.gpsFix);
+          displayPV.prt_str(_dispStr, 20, 0, 86);
+          sprintf(_dispStr, "PSMState=%02X", navstatusInfo.psmState);
+          displayPV.prt_str(_dispStr, 20, 0, 104);
+          sprintf(_dispStr, "CarrSoln=%02d", navstatusInfo.carrSoln);
+          displayPV.prt_str(_dispStr, 20, 0, 122);
+          sprintf(_dispStr, "TTFF=%08d", navstatusInfo.ttff / 1000);
+          displayPV.prt_str(_dispStr, 20, 0, 140);
+          sprintf(_dispStr, "SpoofDetState=%d", navstatusInfo.spoofDetState);
+          displayPV.prt_str(_dispStr, 20, 0, 162);
+          sprintf(_dispStr, "SpoofIndicated=%d", navstatusInfo.spoofingIndicated);
+          displayPV.prt_str(_dispStr, 20, 0, 180);
+          sprintf(_dispStr, "MultiSpoofInd=%d", navstatusInfo.multipleSpoofingIndications);
+          displayPV.prt_str(_dispStr, 20, 0, 198);
+        } else {
+          sprintf(_dispStr, "**NO NAVSTAT DATA**");
+          displayPV.prt_str(_dispStr, 20, 0, 64);
+        }
       } else if(menu.isMenuPageCurrent(menuPageGPSSatCal)) {
         // GPS Clock
         if(gps.isPacketValid()) {
@@ -506,17 +506,17 @@ void display_refresh() {
         displayPV.prt_str(_dispStr, 20, 0, 252);
         sprintf(_dispStr, "Lon=%s", getLongitudeStr(_ubxNAVPVTInfo.longitude * 1e-7));
         displayPV.prt_str(_dispStr, 20, 0, 268);
+      //sprintf(_dispStr, "   SAT OUTPUT PKT");
+      //displayPV.prt_str(_dispStr, 20, 0, 224);
+      //ubxNAVSATInfo_t _ubxNAVSATInfo = emulator.getNAVSATPacketInfo();
+      //sprintf(_dispStr, "Sats Total=%02d", _ubxNAVSATInfo.numSvs);
+      //displayPV.prt_str(_dispStr, 20, 0, 240);
       //sprintf(_dispStr, "  STAT OUTPUT PKT");
-      //displayPV.prt_str(_dispStr, 20, 6, 224);
+      //displayPV.prt_str(_dispStr, 20, 6, 260);
       //ubxNAVSTATUSInfo_t _ubxNAVSTATUSInfo = emulator.getNAVSTATUSPacketInfo();
       //sprintf(_dispStr, "Fx=%01X OK=%01X PSM=%01X SD=%01X",
       //        _ubxNAVSTATUSInfo.gpsFix, _ubxNAVSTATUSInfo.gpsFixOk,
       //        _ubxNAVSTATUSInfo.psmState, _ubxNAVSTATUSInfo.spoofDetState);
-      //displayPV.prt_str(_dispStr, 20, 0, 240);
-      //sprintf(_dispStr, "   SAT OUTPUT PKT");
-      //displayPV.prt_str(_dispStr, 20, 0, 260);
-      //ubxNAVSATInfo_t _ubxNAVSATInfo = emulator.getNAVSATPacketInfo();
-      //sprintf(_dispStr, "Sats Total=%02d", _ubxNAVSATInfo.numSvs);
       //displayPV.prt_str(_dispStr, 20, 0, 276);
       //sprintf(_dispStr, "RXP CL%02XID%02XPL%02dV%d",
       //        emulator.receivedPacket.messageClass,

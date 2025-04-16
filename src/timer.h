@@ -21,8 +21,8 @@ void itimer0_handler() {
   if(gpsEnabled) {
     if(deviceState.DEVICE_MODE==DM_GPSRCVR) gps.gnss_checkUblox(); //update every 10ms
     if(deviceState.DEVICE_MODE==DM_GPSLOGR) gps.gnss_checkUblox(); //update every 10ms
-    if(deviceState.DEVICE_MODE==DM_GPSSTAT) gps.gnss_checkUblox(); //update every 10ms
     if(deviceState.DEVICE_MODE==DM_GPSNSAT) gps.gnss_checkUblox(); //update every 10ms
+    if(deviceState.DEVICE_MODE==DM_GPSSTAT) gps.gnss_checkUblox(); //update every 10ms
     if(deviceState.DEVICE_MODE==DM_GPSSCAL) gps.gnss_checkUblox(); //update every 10ms
   }
   if(emulatorEnabled) {

@@ -236,17 +236,6 @@ void loop() {
         displayRefresh = true;
       }
       break;
-    case DM_GPSSTAT:
-      if(gps.getNAVPVT()) {
-        if((!rtc.isValid()) && gps.isDateValid() && gps.isTimeValid()) {
-          rtc.setRTCTime(gps.getYear(), gps.getMonth(), gps.getDay(),
-                         gps.getHour(), gps.getMinute(), gps.getSecond());
-        }
-        displayRefresh = true;
-      } else if(gps.getNAVSTATUS()) {
-        displayRefresh = true;
-      }
-      break;
     case DM_GPSNSAT:
       if(gps.getNAVPVT()) {
         if((!rtc.isValid()) && gps.isDateValid() && gps.isTimeValid()) {
@@ -258,7 +247,7 @@ void loop() {
         displayRefresh = true;
       }
       break;
-    case DM_GPSSCAL:
+    case DM_GPSSTAT:
       if(gps.getNAVPVT()) {
         if((!rtc.isValid()) && gps.isDateValid() && gps.isTimeValid()) {
           rtc.setRTCTime(gps.getYear(), gps.getMonth(), gps.getDay(),
@@ -267,7 +256,18 @@ void loop() {
         displayRefresh = true;
       } else if(gps.getNAVSTATUS()) {
         displayRefresh = true;
+      }
+      break;
+    case DM_GPSSCAL:
+      if(gps.getNAVPVT()) {
+        if((!rtc.isValid()) && gps.isDateValid() && gps.isTimeValid()) {
+          rtc.setRTCTime(gps.getYear(), gps.getMonth(), gps.getDay(),
+                         gps.getHour(), gps.getMinute(), gps.getSecond());
+        }
+        displayRefresh = true;
       } else if(gps.getNAVSAT()) {
+        displayRefresh = true;
+      } else if(gps.getNAVSTATUS()) {
         displayRefresh = true;
       }
       if(_clockTick_1sec) satCalibration_tick();

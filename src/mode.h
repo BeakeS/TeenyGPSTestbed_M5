@@ -39,11 +39,11 @@ void deviceMode_init() {
         msg_update("ERROR - GPS Missing");
       }
       break;
-    case DM_GPSSTAT:
+    case DM_GPSNSAT:
       //statusLED.pulse_repeat(1);
       rtc.setValid(false);
       gpsSerial = &Serial2;
-      if(gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, deviceState.GPSRESET, 1, 0, 1, true)) {
+      if(gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, deviceState.GPSRESET, 1, 10, 0, true)) {
         gpsEnabled = true;
         sprintf(_dispStr, "GPS CONN UBPV=%02d.%02d",
                 gps.getProtocolVersionHigh(),
@@ -55,11 +55,11 @@ void deviceMode_init() {
         msg_update("ERROR - GPS Missing");
       }
       break;
-    case DM_GPSNSAT:
+    case DM_GPSSTAT:
       //statusLED.pulse_repeat(1);
       rtc.setValid(false);
       gpsSerial = &Serial2;
-      if(gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, deviceState.GPSRESET, 1, 10, 0, true)) {
+      if(gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, deviceState.GPSRESET, 1, 0, 1, true)) {
         gpsEnabled = true;
         sprintf(_dispStr, "GPS CONN UBPV=%02d.%02d",
                 gps.getProtocolVersionHigh(),
@@ -162,20 +162,20 @@ void deviceMode_end() {
       }
       gpsEnabled = false;
       break;
-    case DM_GPSSTAT:
+    case DM_GPSNSAT:
       if(gpsEnabled) {
         if(gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_NORESET, 0, 0, 0)) {
-          msg_update("GPS NAVSTAT Stopped");
+          msg_update("GPS NAVSAT Stopped");
         } else {
           msg_update("ERROR - GPS Reset");
         }
       }
       gpsEnabled = false;
       break;
-    case DM_GPSNSAT:
+    case DM_GPSSTAT:
       if(gpsEnabled) {
         if(gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_NORESET, 0, 0, 0)) {
-          msg_update("GPS NAVSAT Stopped");
+          msg_update("GPS NAVSTAT Stopped");
         } else {
           msg_update("ERROR - GPS Reset");
         }

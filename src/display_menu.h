@@ -48,8 +48,8 @@ SelectOptionUint8t selectMenuModeOptions[] = {
   {"IDLE",   DM_IDLE},
   {"GPSRCV", DM_GPSRCVR},
   {"GPSLOG", DM_GPSLOGR},
-  {"NVSTAT", DM_GPSSTAT},
   {"NAVSAT", DM_GPSNSAT},
+  {"NVSTAT", DM_GPSSTAT},
   {"SATCAL", DM_GPSSCAL},
   {"SATCFG", DM_GPSSCFG},
 //{"GPSSST", DM_GPSSSTP},
@@ -91,15 +91,6 @@ TeenyMenuItem menuItemGPSLoggerStrtLog("Start GPS Logging", menu_startGPSLoggerC
 void menu_stopGPSLoggerCB(); // forward declaration
 TeenyMenuItem menuItemGPSLoggerStopLog("Stop GPS Logging", menu_stopGPSLoggerCB);
 //
-// gps navstat unit
-//
-void menu_entrGPSNavStatCB(); // forward declaration
-void menu_exitGPSNavStatCB(); // forward declaration
-TeenyMenuPage menuPageGPSNavStat("GPS NAVSTAT MODE", menu_entrGPSNavStatCB, menu_exitGPSNavStatCB);
-TeenyMenuItem menuItemGPSNavStat("*START GPS NVSTAT*", menuPageGPSNavStat);
-TeenyMenuItem menuItemGPSNavStatExit(false); // optional return menu item
-TeenyMenuItem menuItemGPSNavStatLabel0("");
-//
 // gps navsat unit
 //
 void menu_entrGPSNavSatCB(); // forward declaration
@@ -123,6 +114,15 @@ TeenyMenuItem menuItemGPSNavSatLabel10("");
 TeenyMenuItem menuItemGPSNavSatLabel11("");
 TeenyMenuItem menuItemGPSNavSatLabel12("");
 TeenyMenuItem menuItemGPSNavSatToggleView("", menu_GPSNavSatToggleViewCB);
+//
+// gps navstat unit
+//
+void menu_entrGPSNavStatCB(); // forward declaration
+void menu_exitGPSNavStatCB(); // forward declaration
+TeenyMenuPage menuPageGPSNavStat("GPS NAVSTAT MODE", menu_entrGPSNavStatCB, menu_exitGPSNavStatCB);
+TeenyMenuItem menuItemGPSNavStat("*START GPS NVSTAT*", menuPageGPSNavStat);
+TeenyMenuItem menuItemGPSNavStatExit(false); // optional return menu item
+TeenyMenuItem menuItemGPSNavStatLabel0("");
 //
 // gps calibration unit
 //
@@ -342,8 +342,8 @@ TeenyMenuItem menuItemGPSSettingsExit(false); // optional return menu item
 SelectOptionUint8t selectUBXPktLogModeOptions[] = {
   {"NONE",   UBXPKTLOG_NONE},
   {"NAVPVT", UBXPKTLOG_NAVPVT},
-  {"STATUS", UBXPKTLOG_NAVSTATUS},
   {"NAVSAT", UBXPKTLOG_NAVSAT},
+  {"STATUS", UBXPKTLOG_NAVSTATUS},
   {"ALL",    UBXPKTLOG_ALL}};
 TeenyMenuSelect selectUBXPktLogMode(sizeof(selectUBXPktLogModeOptions)/sizeof(SelectOptionUint8t), selectUBXPktLogModeOptions);
 TeenyMenuItem menuItemUBXPktLogMode("UBX Pkt Log", deviceState.UBXPKTLOGMODE, selectUBXPktLogMode);
@@ -499,9 +499,6 @@ void menu_setup() {
   menuPageGPSLogger.addMenuItem(menuItemGPSLoggerStrtLog);
   menuPageGPSLogger.addMenuItem(menuItemGPSLoggerStopLog);
   //menuPageGPSLogger.addMenuItem(menuItemGPSLoggerExit);
-  menuPageMain.addMenuItem(menuItemGPSNavStat);
-  menuPageGPSNavStat.addMenuItem(menuItemGPSNavStatLabel0);
-  //menuPageGPSNavStat.addMenuItem(menuItemGPSNavStatExit);
   menuPageMain.addMenuItem(menuItemGPSNavSat);
   menuPageGPSNavSat.addMenuItem(menuItemGPSNavSatLabel00);
   menuPageGPSNavSat.addMenuItem(menuItemGPSNavSatLabel01);
@@ -518,6 +515,9 @@ void menu_setup() {
   menuPageGPSNavSat.addMenuItem(menuItemGPSNavSatLabel12);
   menuPageGPSNavSat.addMenuItem(menuItemGPSNavSatToggleView);
   //menuPageGPSNavSat.addMenuItem(menuItemGPSNavSatExit);
+  menuPageMain.addMenuItem(menuItemGPSNavStat);
+  menuPageGPSNavStat.addMenuItem(menuItemGPSNavStatLabel0);
+  //menuPageGPSNavStat.addMenuItem(menuItemGPSNavStatExit);
   menuPageMain.addMenuItem(menuItemGPSSatCal);
   menuPageGPSSatCal.addMenuItem(menuItemGPSSatCalLabel00);
   menuPageGPSSatCal.addMenuItem(menuItemGPSSatCalLabel01);
@@ -643,11 +643,11 @@ void menu_setup() {
     case DM_GPSLOGR:
       menu.linkMenuPage(menuPageGPSLogger);
       break;
-    case DM_GPSSTAT:
-      menu.linkMenuPage(menuPageGPSNavStat);
-      break;
     case DM_GPSNSAT:
       menu.linkMenuPage(menuPageGPSNavSat);
+      break;
+    case DM_GPSSTAT:
+      menu.linkMenuPage(menuPageGPSNavStat);
       break;
     case DM_GPSSCAL:
       menu.linkMenuPage(menuPageGPSSatCal);
@@ -718,8 +718,8 @@ void menu_menuModeCB() {
     case DM_IDLE:
       menuItemGPSReceiver.hide();
       menuItemGPSLogger.hide();
-      menuItemGPSNavStat.hide();
       menuItemGPSNavSat.hide();
+      menuItemGPSNavStat.hide();
       menuItemGPSSatCal.hide();
       menuItemGPSSatCfg.hide();
       menuItemGPSReset.hide();
@@ -732,8 +732,8 @@ void menu_menuModeCB() {
     case DM_GPSRCVR:
       menuItemGPSReceiver.show();
       menuItemGPSLogger.hide();
-      menuItemGPSNavStat.hide();
       menuItemGPSNavSat.hide();
+      menuItemGPSNavStat.hide();
       menuItemGPSSatCal.hide();
       menuItemGPSSatCfg.hide();
       menuItemGPSReset.show();
@@ -746,8 +746,8 @@ void menu_menuModeCB() {
     case DM_GPSLOGR:
       menuItemGPSReceiver.hide();
       menuItemGPSLogger.show();
-      menuItemGPSNavStat.hide();
       menuItemGPSNavSat.hide();
+      menuItemGPSNavStat.hide();
       menuItemGPSSatCal.hide();
       menuItemGPSSatCfg.hide();
       menuItemGPSReset.show();
@@ -759,11 +759,11 @@ void menu_menuModeCB() {
       menuItemGPSLoggerStrtLog.hide(gpsLoggingInProgress ? true : false);
       menuItemGPSLoggerStopLog.hide(gpsLoggingInProgress ? false : true);
       break;
-    case DM_GPSSTAT:
+    case DM_GPSNSAT:
       menuItemGPSReceiver.hide();
       menuItemGPSLogger.hide();
-      menuItemGPSNavStat.show();
-      menuItemGPSNavSat.hide();
+      menuItemGPSNavSat.show();
+      menuItemGPSNavStat.hide();
       menuItemGPSSatCal.hide();
       menuItemGPSSatCfg.hide();
       menuItemGPSReset.show();
@@ -773,11 +773,11 @@ void menu_menuModeCB() {
       menuItemGPSEmulateM10.hide();
       menuItemLabel3.hide();
       break;
-    case DM_GPSNSAT:
+    case DM_GPSSTAT:
       menuItemGPSReceiver.hide();
       menuItemGPSLogger.hide();
-      menuItemGPSNavStat.hide();
-      menuItemGPSNavSat.show();
+      menuItemGPSNavSat.hide();
+      menuItemGPSNavStat.show();
       menuItemGPSSatCal.hide();
       menuItemGPSSatCfg.hide();
       menuItemGPSReset.show();
@@ -790,8 +790,8 @@ void menu_menuModeCB() {
     case DM_GPSSCAL:
       menuItemGPSReceiver.hide();
       menuItemGPSLogger.hide();
-      menuItemGPSNavStat.hide();
       menuItemGPSNavSat.hide();
+      menuItemGPSNavStat.hide();
       menuItemGPSSatCal.show();
       menuItemGPSSatCfg.hide();
       menuItemGPSReset.hide();
@@ -804,8 +804,8 @@ void menu_menuModeCB() {
     case DM_GPSSCFG:
       menuItemGPSReceiver.hide();
       menuItemGPSLogger.hide();
-      menuItemGPSNavStat.hide();
       menuItemGPSNavSat.hide();
+      menuItemGPSNavStat.hide();
       menuItemGPSSatCal.hide();
       menuItemGPSSatCfg.show();
       menuItemGPSReset.hide();
@@ -818,8 +818,8 @@ void menu_menuModeCB() {
     case DM_GPSSSTP:
       menuItemGPSReceiver.hide();
       menuItemGPSLogger.hide();
-      menuItemGPSNavStat.hide();
       menuItemGPSNavSat.hide();
+      menuItemGPSNavStat.hide();
       menuItemGPSSatCal.hide();
       menuItemGPSSatCfg.hide();
       menuItemGPSReset.hide();
@@ -832,8 +832,8 @@ void menu_menuModeCB() {
     case DM_GPSEMU_M8:
       menuItemGPSReceiver.hide();
       menuItemGPSLogger.hide();
-      menuItemGPSNavStat.hide();
       menuItemGPSNavSat.hide();
+      menuItemGPSNavStat.hide();
       menuItemGPSSatCal.hide();
       menuItemGPSSatCfg.hide();
       menuItemGPSReset.hide();
@@ -846,8 +846,8 @@ void menu_menuModeCB() {
     case DM_GPSEMU_M10:
       menuItemGPSReceiver.hide();
       menuItemGPSLogger.hide();
-      menuItemGPSNavStat.hide();
       menuItemGPSNavSat.hide();
+      menuItemGPSNavStat.hide();
       menuItemGPSSatCal.hide();
       menuItemGPSSatCfg.hide();
       menuItemGPSReset.hide();
@@ -978,22 +978,6 @@ void menu_exitGPSLoggerCB() {
 }
 
 /********************************************************************/
-void menu_entrGPSNavStatCB() {
-  display_processingMsg();
-  deviceState.DEVICE_MODE = DM_GPSSTAT;
-  deviceMode_init();
-  displayRefresh = true;
-}
-
-/********************************************************************/
-void menu_exitGPSNavStatCB() {
-  display_processingMsg();
-  deviceMode_end();
-  menu.exitToParentMenuPage();
-  displayRefresh = true;
-}
-
-/********************************************************************/
 void menu_entrGPSNavSatCB() {
   display_processingMsg();
   deviceState.DEVICE_MODE = DM_GPSNSAT;
@@ -1013,6 +997,22 @@ void menu_GPSNavSatToggleViewCB() {
 
 /********************************************************************/
 void menu_exitGPSNavSatCB() {
+  display_processingMsg();
+  deviceMode_end();
+  menu.exitToParentMenuPage();
+  displayRefresh = true;
+}
+
+/********************************************************************/
+void menu_entrGPSNavStatCB() {
+  display_processingMsg();
+  deviceState.DEVICE_MODE = DM_GPSSTAT;
+  deviceMode_init();
+  displayRefresh = true;
+}
+
+/********************************************************************/
+void menu_exitGPSNavStatCB() {
   display_processingMsg();
   deviceMode_end();
   menu.exitToParentMenuPage();

@@ -152,11 +152,13 @@ bool logger_update() {
               _navsatInfo.numSvsUsed);
       if(_navsatInfo.numSvsHealthy > 0) {
         for(uint8_t i=0; i<_navsatInfo.numSvsHealthy; i++) {
-          sprintf(_navsatCSVStr, "%s,%c%02d/%02d",
+          sprintf(_navsatCSVStr, "%s,%c%02d/%02d/%02d\xB0/%03d\xB0",
                   _navsatCSVStr,
                   _navsatInfo.svSortList[i].gnssIdType,
                   _navsatInfo.svSortList[i].svId,
-                  _navsatInfo.svSortList[i].cno);
+                  _navsatInfo.svSortList[i].cno,
+                  _navsatInfo.svSortList[i].elev,
+                  _navsatInfo.svSortList[i].azim);
         }
       }
       _enqueueWriteNAVSATCSVRecord = true;
