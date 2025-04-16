@@ -235,15 +235,15 @@ bool TeenyGPSConnect::getNAVPVT() {
     gnss.getNAVPVTInfo(navpvtInfo);
     data.packet_valid = true;
     data.iTOW = navpvtInfo.iTOW;
+    // save previous location data
     data.prev_gnssFixOk = data.curr_gnssFixOk;
+    data.prev_latitude  = data.latitude;
+    data.prev_longitude = data.longitude;
     data.curr_gnssFixOk = navpvtInfo.gnssFixOk;
 
     if(data.curr_gnssFixOk) {
       data.location_valid = true;
       location_timer.restart();
-      // save previous location data
-      data.prev_latitude  = data.latitude;
-      data.prev_longitude = data.longitude;
       // get current data
       data.location_fixType = navpvtInfo.fixType;
       data.latitude    = navpvtInfo.latitude * 1e-7;
