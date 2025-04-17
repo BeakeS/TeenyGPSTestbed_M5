@@ -76,15 +76,15 @@ bool logger_update() {
                      gps.getHour(), gps.getMinute(), gps.getSecond());
     }
     if(gpsLoggingInProgress &&
-       ((deviceState.UBXPKTLOGMODE == UBXPKTLOG_NAVPVT) ||
-        (deviceState.UBXPKTLOGMODE == UBXPKTLOG_ALL))) {
+       ((deviceState.GPS_LOGUBXMODE == GPS_LOGUBX_NAVPVT) ||
+        (deviceState.GPS_LOGUBXMODE == GPS_LOGUBX_ALL))) {
       // UBX packet logging
       gps.getNAVPVTPacket(_navpvtPacket);
       _navpvtIsLocationValid = gps.isLocationValid();
       _enqueueWriteNAVPVTPkt = true;
     }
     if(gpsLoggingInProgress &&
-       (deviceState.GPSLOG_GPX || deviceState.GPSLOG_KML || deviceState.GPSLOG_CSV)) {
+       (deviceState.GPS_LOGGPX || deviceState.GPS_LOGKML || deviceState.GPS_LOGCSV)) {
       // GPS Logging
       char _latStr[11];
       dtostrf(gps.getLatitude(), -9, 6, _latStr);
@@ -99,14 +99,14 @@ bool logger_update() {
       dateTime.second = gps.getSecond();
       char* _itdStr = rtc.dateTimeToISO8601Str(dateTime);
       // GPX Logging
-      if(deviceState.GPSLOG_GPX) {
+      if(deviceState.GPS_LOGGPX) {
         // trkpt - "      <trkpt lat=\"45.4431641\" lon=\"-121.7295456\"><ele>122</ele><time>2001-06-02T00:18:15Z</time></trkpt>\n"
         sprintf(_navpvtGPXStr, "      <trkpt lat=\"%s\" lon=\"%s\"><ele>%d</ele><time>%sZ</time></trkpt>\n",
                 _latStr, _lonStr, gps.getAltitude(), _itdStr);
         _enqueueWriteNAVPVTGPXRecord = true;
       }
       // KML Logging
-      if(deviceState.GPSLOG_KML) {
+      if(deviceState.GPS_LOGKML) {
         // trkpt - "      <when>2010-05-28T02:02:09Z</when>"
         // trkpt - "      <gx:coord>-122.207881 37.371915 156.000000</gx:coord>"
         sprintf(_navpvtKMLStr,   "      <when>%sZ</when>\n", _itdStr);
@@ -116,7 +116,7 @@ bool logger_update() {
         _enqueueWriteNAVPVTKMLRecord = true;
       }
       // CSV Logging
-      if(deviceState.GPSLOG_CSV) {
+      if(deviceState.GPS_LOGCSV) {
         char _headingStr[11];
         dtostrf(gps.getHeading(), -9, 6, _headingStr);
         char _pdopStr[11];
@@ -135,15 +135,15 @@ bool logger_update() {
   } else if(gps.getNAVSAT()) {
     // NAVSAT
     if(gpsLoggingInProgress &&
-       ((deviceState.UBXPKTLOGMODE == UBXPKTLOG_NAVSAT) ||
-        (deviceState.UBXPKTLOGMODE == UBXPKTLOG_ALL))) {
+       ((deviceState.GPS_LOGUBXMODE == GPS_LOGUBX_NAVSAT) ||
+        (deviceState.GPS_LOGUBXMODE == GPS_LOGUBX_ALL))) {
       // UBX packet logging
       gps.getNAVSATPacket(_navsatPacket);
       _navsatPacketLength = gps.getNAVSATPacketLength();
       _enqueueWriteNAVSATPkt = true;
     }
     // CSV Logging
-    if(gpsLoggingInProgress && deviceState.GPSLOG_CSV) {
+    if(gpsLoggingInProgress && deviceState.GPS_LOGCSV) {
       ubloxNAVSATInfo_t _navsatInfo;
       gps.getNAVSATInfo(_navsatInfo);
       sprintf(_navsatCSVStr, ",%d,%d,%d,%d,%d",
@@ -168,14 +168,14 @@ bool logger_update() {
   } else if(gps.getNAVSTATUS()) {
     // NAVSTATUS
     if(gpsLoggingInProgress &&
-       ((deviceState.UBXPKTLOGMODE == UBXPKTLOG_NAVSTATUS) ||
-        (deviceState.UBXPKTLOGMODE == UBXPKTLOG_ALL))) {
+       ((deviceState.GPS_LOGUBXMODE == GPS_LOGUBX_NAVSTATUS) ||
+        (deviceState.GPS_LOGUBXMODE == GPS_LOGUBX_ALL))) {
       // UBX packet logging
       gps.getNAVSTATUSPacket(_navstatusPacket);
       _enqueueWriteNAVSTATUSPkt = true;
     }
     // CSV Logging
-    if(gpsLoggingInProgress && deviceState.GPSLOG_CSV) {
+    if(gpsLoggingInProgress && deviceState.GPS_LOGCSV) {
       ubloxNAVSTATUSInfo_t _navstatusInfo;
       gps.getNAVSTATUSInfo(_navstatusInfo);
       sprintf(_navstatusCSVStr, ",%s,%02X,%02X,%02d,%08d,%d,%d,%d",

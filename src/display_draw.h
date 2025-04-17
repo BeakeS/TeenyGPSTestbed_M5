@@ -247,7 +247,7 @@ void display_refresh() {
           displayPV.prt_str(_dispStr, 20, 0, 156);
         }
         if(gpsLoggingInProgress) {
-          if(deviceState.UBXPKTLOGMODE != UBXPKTLOG_NONE) {
+          if(deviceState.GPS_LOGUBXMODE != GPS_LOGUBX_NONE) {
             sprintf(_dispStr, "  %s", ubxLoggingFileName);
             displayPV.prt_str(_dispStr, 20, 0, 222);
             sprintf(_dispStr, "  Records=%06d",
@@ -259,19 +259,19 @@ void display_refresh() {
             sprintf(_dispStr, "  Valid Pkts=%06d",
                     min(ubxLoggingFileWritePktValidCount, 999999));
             displayPV.prt_str(_dispStr, 20, 0, 276);
-          } else if(deviceState.GPSLOG_GPX) {
+          } else if(deviceState.GPS_LOGGPX) {
             sprintf(_dispStr, "  %s", gpxLoggingFileName);
             displayPV.prt_str(_dispStr, 20, 0, 222);
             sprintf(_dispStr, "  Records=%06d",
                     min(gpxLoggingFileWriteCount, 999999));
             displayPV.prt_str(_dispStr, 20, 0, 240);
-          } else if(deviceState.GPSLOG_KML) {
+          } else if(deviceState.GPS_LOGKML) {
             sprintf(_dispStr, "  %s", kmlLoggingFileName);
             displayPV.prt_str(_dispStr, 20, 0, 222);
             sprintf(_dispStr, "  Records=%06d",
                     min(kmlLoggingFileWriteCount, 999999));
             displayPV.prt_str(_dispStr, 20, 0, 240);
-          } else if(deviceState.GPSLOG_CSV) {
+          } else if(deviceState.GPS_LOGCSV) {
             sprintf(_dispStr, "  %s", csvLoggingFileName);
             displayPV.prt_str(_dispStr, 20, 0, 222);
             sprintf(_dispStr, "  Records=%06d",

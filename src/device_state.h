@@ -26,12 +26,13 @@ enum emuUbxPktSource_t : uint8_t {
 typedef struct {
   int16_t  TIMEZONE = 0;
   int16_t  DEVICE_MODE = DM_IDLE;
-  uint8_t  GPSRESET = GPS_NORESET;
-  uint8_t  UBXPKTLOGMODE = UBXPKTLOG_ALL;
-  bool     GPSLOG_GPX = false;
-  bool     GPSLOG_KML = true;
-  bool     GPSLOG_CSV = false;
-  uint8_t  GPSCALIBRATIONPERIOD = 12;
+  uint8_t  GPS_RESETMODE = GPS_NORESET;
+  uint8_t  GPS_UBXNAVSATRATE = 10;
+  uint8_t  GPS_LOGUBXMODE = GPS_LOGUBX_ALL;
+  bool     GPS_LOGGPX = false;
+  bool     GPS_LOGKML = true;
+  bool     GPS_LOGCSV = true;
+  uint8_t  GPS_CALIBRATEPERIOD = 12;
   uint8_t  EMU_UBXPKTSOURCE = EMU_PGMINPUT;
   uint8_t  EMU_NUMCOLDSTARTPACKETS = 10;
   bool     EMU_UBXPKTLOOPENABLE = false;
@@ -64,23 +65,26 @@ bool writeDeviceStateKVS() {
   rc = deviceStateKVS.set("DEVICE_MODE", strlen("DEVICE_MODE"),
                           (uint8_t*)&deviceState.DEVICE_MODE, sizeof(deviceState.DEVICE_MODE));
   if(!rc) return false;
-  rc = deviceStateKVS.set("GPSRESET", strlen("GPSRESET"),
-                          (uint8_t*)&deviceState.GPSRESET, sizeof(deviceState.GPSRESET));
+  rc = deviceStateKVS.set("GPS_RESETMODE", strlen("GPS_RESETMODE"),
+                          (uint8_t*)&deviceState.GPS_RESETMODE, sizeof(deviceState.GPS_RESETMODE));
   if(!rc) return false;
-  rc = deviceStateKVS.set("UBXPKTLOGMODE", strlen("UBXPKTLOGMODE"),
-                          (uint8_t*)&deviceState.UBXPKTLOGMODE, sizeof(deviceState.UBXPKTLOGMODE));
+  rc = deviceStateKVS.set("GPS_UBXNAVSATRATE", strlen("GPS_UBXNAVSATRATE"),
+                          (uint8_t*)&deviceState.GPS_UBXNAVSATRATE, sizeof(deviceState.GPS_UBXNAVSATRATE));
   if(!rc) return false;
-  rc = deviceStateKVS.set("GPSLOG_GPX", strlen("GPSLOG_GPX"),
-                          (uint8_t*)&deviceState.GPSLOG_GPX, sizeof(deviceState.GPSLOG_GPX));
+  rc = deviceStateKVS.set("GPS_LOGUBXMODE", strlen("GPS_LOGUBXMODE"),
+                          (uint8_t*)&deviceState.GPS_LOGUBXMODE, sizeof(deviceState.GPS_LOGUBXMODE));
   if(!rc) return false;
-  rc = deviceStateKVS.set("GPSLOG_KML", strlen("GPSLOG_KML"),
-                          (uint8_t*)&deviceState.GPSLOG_KML, sizeof(deviceState.GPSLOG_KML));
+  rc = deviceStateKVS.set("GPS_LOGGPX", strlen("GPS_LOGGPX"),
+                          (uint8_t*)&deviceState.GPS_LOGGPX, sizeof(deviceState.GPS_LOGGPX));
   if(!rc) return false;
-  rc = deviceStateKVS.set("GPSLOG_CSV", strlen("GPSLOG_CSV"),
-                          (uint8_t*)&deviceState.GPSLOG_CSV, sizeof(deviceState.GPSLOG_CSV));
+  rc = deviceStateKVS.set("GPS_LOGKML", strlen("GPS_LOGKML"),
+                          (uint8_t*)&deviceState.GPS_LOGKML, sizeof(deviceState.GPS_LOGKML));
   if(!rc) return false;
-  rc = deviceStateKVS.set("GPSCALIBRATIONPERIOD", strlen("GPSCALIBRATIONPERIOD"),
-                          (uint8_t*)&deviceState.GPSCALIBRATIONPERIOD, sizeof(deviceState.GPSCALIBRATIONPERIOD));
+  rc = deviceStateKVS.set("GPS_LOGCSV", strlen("GPS_LOGCSV"),
+                          (uint8_t*)&deviceState.GPS_LOGCSV, sizeof(deviceState.GPS_LOGCSV));
+  if(!rc) return false;
+  rc = deviceStateKVS.set("GPS_CALIBRATEPERIOD", strlen("GPS_CALIBRATEPERIOD"),
+                          (uint8_t*)&deviceState.GPS_CALIBRATEPERIOD, sizeof(deviceState.GPS_CALIBRATEPERIOD));
   if(!rc) return false;
   rc = deviceStateKVS.set("EMU_UBXPKTSOURCE", strlen("EMU_UBXPKTSOURCE"),
                           (uint8_t*)&deviceState.EMU_UBXPKTSOURCE, sizeof(deviceState.EMU_UBXPKTSOURCE));
@@ -115,23 +119,26 @@ bool readDeviceStateKVS() {
   rc = deviceStateKVS.get("DEVICE_MODE", strlen("DEVICE_MODE"),
                           (uint8_t*)&deviceState.DEVICE_MODE, sizeof(deviceState.DEVICE_MODE));
   if(!rc) return false;
-  rc = deviceStateKVS.get("GPSRESET", strlen("GPSRESET"),
-                          (uint8_t*)&deviceState.GPSRESET, sizeof(deviceState.GPSRESET));
+  rc = deviceStateKVS.get("GPS_RESETMODE", strlen("GPS_RESETMODE"),
+                          (uint8_t*)&deviceState.GPS_RESETMODE, sizeof(deviceState.GPS_RESETMODE));
   if(!rc) return false;
-  rc = deviceStateKVS.get("UBXPKTLOGMODE", strlen("UBXPKTLOGMODE"),
-                          (uint8_t*)&deviceState.UBXPKTLOGMODE, sizeof(deviceState.UBXPKTLOGMODE));
+  rc = deviceStateKVS.get("GPS_UBXNAVSATRATE", strlen("GPS_UBXNAVSATRATE"),
+                          (uint8_t*)&deviceState.GPS_UBXNAVSATRATE, sizeof(deviceState.GPS_UBXNAVSATRATE));
   if(!rc) return false;
-  rc = deviceStateKVS.get("GPSLOG_GPX", strlen("GPSLOG_GPX"),
-                          (uint8_t*)&deviceState.GPSLOG_GPX, sizeof(deviceState.GPSLOG_GPX));
+  rc = deviceStateKVS.get("GPS_LOGUBXMODE", strlen("GPS_LOGUBXMODE"),
+                          (uint8_t*)&deviceState.GPS_LOGUBXMODE, sizeof(deviceState.GPS_LOGUBXMODE));
   if(!rc) return false;
-  rc = deviceStateKVS.get("GPSLOG_KML", strlen("GPSLOG_KML"),
-                          (uint8_t*)&deviceState.GPSLOG_KML, sizeof(deviceState.GPSLOG_KML));
+  rc = deviceStateKVS.get("GPS_LOGGPX", strlen("GPS_LOGGPX"),
+                          (uint8_t*)&deviceState.GPS_LOGGPX, sizeof(deviceState.GPS_LOGGPX));
   if(!rc) return false;
-  rc = deviceStateKVS.get("GPSLOG_CSV", strlen("GPSLOG_CSV"),
-                          (uint8_t*)&deviceState.GPSLOG_CSV, sizeof(deviceState.GPSLOG_CSV));
+  rc = deviceStateKVS.get("GPS_LOGKML", strlen("GPS_LOGKML"),
+                          (uint8_t*)&deviceState.GPS_LOGKML, sizeof(deviceState.GPS_LOGKML));
   if(!rc) return false;
-  rc = deviceStateKVS.get("GPSCALIBRATIONPERIOD", strlen("GPSCALIBRATIONPERIOD"),
-                          (uint8_t*)&deviceState.GPSCALIBRATIONPERIOD, sizeof(deviceState.GPSCALIBRATIONPERIOD));
+  rc = deviceStateKVS.get("GPS_LOGCSV", strlen("GPS_LOGCSV"),
+                          (uint8_t*)&deviceState.GPS_LOGCSV, sizeof(deviceState.GPS_LOGCSV));
+  if(!rc) return false;
+  rc = deviceStateKVS.get("GPS_CALIBRATEPERIOD", strlen("GPS_CALIBRATEPERIOD"),
+                          (uint8_t*)&deviceState.GPS_CALIBRATEPERIOD, sizeof(deviceState.GPS_CALIBRATEPERIOD));
   if(!rc) return false;
   rc = deviceStateKVS.get("EMU_UBXPKTSOURCE", strlen("EMU_UBXPKTSOURCE"),
                           (uint8_t*)&deviceState.EMU_UBXPKTSOURCE, sizeof(deviceState.EMU_UBXPKTSOURCE));

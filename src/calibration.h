@@ -67,7 +67,7 @@ void satCalibration_setStatus(const char* status_);
 bool satCalibration_enter() {
   satcalErrorCode = 0;
   satCalibration_setStatus("-Initializing GPS");
-  satcalStepPeriod = deviceState.GPSCALIBRATIONPERIOD * 60000;
+  satcalStepPeriod = deviceState.GPS_CALIBRATEPERIOD * 60000;
   // satcalStepPeriod = 10000; // for testing step sequence
   satcalStartTime = millis();
   if(gpsEnabled && gps.pollGNSSConfig()) {
@@ -126,7 +126,7 @@ void satCalibration_tick() {
   switch(satcalStep) {
     case SC_GPS_START:
       if(gps.setGNSSConfigState(satcalGNSSConfigList.GPS) &&
-         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 10, 1)) {
+         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, deviceState.GPS_UBXNAVSATRATE, 1)) {
         satcalStep = SC_GPS;
         satcalStepStartTime = millis();
         satcalTTF2DF = 0;
@@ -150,7 +150,7 @@ void satCalibration_tick() {
       break;
     case SC_GAL_START:
       if(gps.setGNSSConfigState(satcalGNSSConfigList.Galileo) &&
-         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 10, 1)) {
+         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, deviceState.GPS_UBXNAVSATRATE, 1)) {
         satcalStep = SC_GAL;
         satcalStepStartTime = millis();
         satcalTTF2DF = 0;
@@ -174,7 +174,7 @@ void satCalibration_tick() {
       break;
     case SC_BDB1_START:
       if(gps.setGNSSConfigState(satcalGNSSConfigList.BeiDou_B1) &&
-         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 10, 1)) {
+         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, deviceState.GPS_UBXNAVSATRATE, 1)) {
         satcalStep = SC_BDB1;
         satcalStepStartTime = millis();
         satcalTTF2DF = 0;
@@ -202,7 +202,7 @@ void satCalibration_tick() {
       break;
     case SC_BDB1C_START:
       if(gps.setGNSSConfigState(satcalGNSSConfigList.BeiDou_B1C) &&
-         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 10, 1)) {
+         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, deviceState.GPS_UBXNAVSATRATE, 1)) {
         satcalStep = SC_BDB1C;
         satcalStepStartTime = millis();
         satcalTTF2DF = 0;
@@ -226,7 +226,7 @@ void satCalibration_tick() {
       break;
     case SC_GLO_START:
       if(gps.setGNSSConfigState(satcalGNSSConfigList.GLONASS) &&
-         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 10, 1)) {
+         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, deviceState.GPS_UBXNAVSATRATE, 1)) {
         satcalStep = SC_GLO;
         satcalStepStartTime = millis();
         satcalTTF2DF = 0;
@@ -250,7 +250,7 @@ void satCalibration_tick() {
       break;
     case SC_FACTORY_START:
       if(gps.setGNSSConfigState(satcalGNSSConfigState_factory) &&
-         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 10, 1)) {
+         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, deviceState.GPS_UBXNAVSATRATE, 1)) {
         satcalGNSSConfigState_factory = gps.getGNSSConfigState();
         satcalStep = SC_FACTORY;
         satcalStepStartTime = millis();
@@ -281,7 +281,7 @@ void satCalibration_tick() {
       break;
     case SC_CURRENT_START:
       if(gps.setGNSSConfigState(satcalGNSSConfigState_config) &&
-         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, 10, 1)) {
+         gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_COLDSTART, 1, deviceState.GPS_UBXNAVSATRATE, 1)) {
         satcalStep = SC_CURRENT;
         satcalStepStartTime = millis();
         satcalTTF2DF = 0;
@@ -359,7 +359,7 @@ void satCalibration_writeHeader() {
   sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
   sprintf(_tempStr, "SpoofDetState,SpoofIndicated,MultiSpoofInd,");
   sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
-  sprintf(_tempStr, "TotalSatellites,HealthySignal,EphemerisValid,UsedForNav,Satellites\n");
+  sprintf(_tempStr, "TotalSatellites,HealthySignal,EphemerisValid,UsedForNav,Sats\n");
   sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
 }
 
@@ -404,7 +404,7 @@ void satCalibration_writeStats() {
       dateTime.hour   = gps.getHour();
       dateTime.minute = gps.getMinute();
       dateTime.second = gps.getSecond();
-      sprintf(_tempStr, "%s,", rtc.dateTimeToISO8601Str(dateTime));
+      sprintf(_tempStr, "%sZ,", rtc.dateTimeToISO8601Str(dateTime));
     } else {
       sprintf(_tempStr, ",");
     }
@@ -452,10 +452,12 @@ void satCalibration_writeStats() {
     sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
     if(navsatInfo.numSvsHealthy > 0) {
       for(uint8_t i=0; i<navsatInfo.numSvsHealthy; i++) {
-        sprintf(_tempStr, ",%c%02d/%02d",
+        sprintf(_tempStr, ",%c%02d/%02d/%02d\xB0/%03d\xB0",
                 navsatInfo.svSortList[i].gnssIdType,
                 navsatInfo.svSortList[i].svId,
-                navsatInfo.svSortList[i].cno);
+                navsatInfo.svSortList[i].cno,
+                navsatInfo.svSortList[i].elev,
+                navsatInfo.svSortList[i].azim);
         sdcard_writeGNSSCalibrateFile((uint8_t*)_tempStr, strlen(_tempStr));
       }
     }
