@@ -297,15 +297,17 @@ uint16_t sdcard_closeCSVLoggingFile() {
 /********************************************************************/
 // GNSS Calibrate File Writer
 /********************************************************************/
+uint8_t  gnssCalibrateFileNum = 0;
+char     gnssCalibrateFileName[14]={0};
 uint32_t gnssCalibrateFileWriteCount;
 /********************************************************************/
 bool sdcard_openGNSSCalibrateFile() {
   if(!sdcardEnabled) return false;
-  if(SD.exists("/GNSSSCAL.csv")) {
-    if(!SD.remove("/GNSSSCAL.csv")) return false;
-  }
+  gnssCalibrateFileNum = sdcard_getAvailableLogFileNumber("GPSCAL", "csv");
+  if(gnssCalibrateFileNum > 99) return false;
+  sprintf(gnssCalibrateFileName, "/GPSCAL%02d.csv", gnssCalibrateFileNum);
   //SdFile::dateTimeCallback(sdDateTimeCB);
-  sdFile = SD.open("/GNSSSCAL.csv", FILE_WRITE);
+  sdFile = SD.open(gnssCalibrateFileName, FILE_WRITE);
   if(!sdFile) return false;
   gnssCalibrateFileWriteCount = 0;
   return true;
