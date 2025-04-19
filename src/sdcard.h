@@ -119,7 +119,7 @@ uint8_t  ubxLoggingFileNum = 0;
 char     ubxLoggingFileName[14]={0};
 uint32_t ubxLoggingFileWriteCount;
 uint32_t ubxLoggingFileWritePktCount;
-uint32_t ubxLoggingFileWritePktValidCount;
+uint32_t ubxLoggingFileWriteLocValidCount;
 /********************************************************************/
 bool sdcard_openUBXLoggingFile() {
   if(!sdcardEnabled) return false;
@@ -131,15 +131,15 @@ bool sdcard_openUBXLoggingFile() {
   if(!sdFile_ubx) return false;
   ubxLoggingFileWriteCount = 0;
   ubxLoggingFileWritePktCount = 0;
-  ubxLoggingFileWritePktValidCount = 0;
+  ubxLoggingFileWriteLocValidCount = 0;
   return true;
 }
 /********************************************************************/
-void sdcard_writeUBXLoggingFile(const uint8_t *buf, size_t size, bool pktValid=false, bool append=false) {
+void sdcard_writeUBXLoggingFile(const uint8_t *buf, size_t size, bool locValid=false, bool append=false) {
   sdFile_ubx.write(buf, size);
   if(!append) ubxLoggingFileWriteCount++;
   ubxLoggingFileWritePktCount++;
-  if(pktValid) ubxLoggingFileWritePktValidCount++;
+  if(locValid) ubxLoggingFileWriteLocValidCount++;
 }
 /********************************************************************/
 uint16_t sdcard_closeUBXLoggingFile() {

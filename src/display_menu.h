@@ -939,10 +939,10 @@ void menu_stopGPSLoggerCB() {
   menuItemGPSLoggerStrtLog.show();
   menuItemGPSLoggerStopLog.hide();
   if(deviceState.GPS_LOGUBXMODE != GPS_LOGUBX_NONE) {
-    sprintf(_msgStr, "F%02d TP=%04d VP=%04d",
+    sprintf(_msgStr, "F%02d TP=%04d LV=%04d",
             ubxLoggingFileNum,
             min(ubxLoggingFileWritePktCount, 9999),
-            min(ubxLoggingFileWritePktValidCount, 9999));
+            min(ubxLoggingFileWriteLocValidCount, 9999));
     msg_update(_msgStr);
   } else if(deviceState.GPS_LOGGPX) {
     sprintf(_msgStr, "GPX#%02d Records=%04d",

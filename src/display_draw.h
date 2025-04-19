@@ -256,8 +256,8 @@ void display_refresh() {
             sprintf(_dispStr, "  Total Pkts=%06d",
                     min(ubxLoggingFileWritePktCount, 999999));
             displayPV.prt_str(_dispStr, 20, 0, 258);
-            sprintf(_dispStr, "  Valid Pkts=%06d",
-                    min(ubxLoggingFileWritePktValidCount, 999999));
+            sprintf(_dispStr, "  Valid Lock=%06d",
+                    min(ubxLoggingFileWriteLocValidCount, 999999));
             displayPV.prt_str(_dispStr, 20, 0, 276);
           } else if(deviceState.GPS_LOGGPX) {
             sprintf(_dispStr, "  %s", gpxLoggingFileName);
