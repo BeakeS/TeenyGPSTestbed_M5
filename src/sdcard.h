@@ -100,7 +100,17 @@ uint16_t sdcard_closeGNSSConfigFile() {
 /********************************************************************/
 // GPS Logging
 /********************************************************************/
-bool     gpsLoggingInProgress = false;
+bool gpsLoggingInProgress = false;
+uint8_t sdcard_getAvailableLogFileNumber(const char* prefix, const char* ext) {
+  char tempFileName[14]={0};
+  for(uint8_t fileNum=0; fileNum<100; fileNum++) {
+    sprintf(tempFileName, "/%s%02d.%s", prefix, fileNum, ext);
+    if(!SD.exists(tempFileName)) {
+      return fileNum;
+    }
+  }
+  return 100;
+}
 
 /********************************************************************/
 // UBX Logging File Writer
@@ -113,10 +123,9 @@ uint32_t ubxLoggingFileWritePktValidCount;
 /********************************************************************/
 bool sdcard_openUBXLoggingFile() {
   if(!sdcardEnabled) return false;
+  ubxLoggingFileNum = sdcard_getAvailableLogFileNumber("UBXLOG", "hex");
+  if(ubxLoggingFileNum > 99) return false;
   sprintf(ubxLoggingFileName, "/UBXLOG%02d.hex", ubxLoggingFileNum);
-  if(SD.exists(ubxLoggingFileName)) {
-    if(!SD.remove(ubxLoggingFileName)) return false;
-  }
   //SdFile::dateTimeCallback(sdDateTimeCB);
   sdFile_ubx = SD.open(ubxLoggingFileName, FILE_WRITE);
   if(!sdFile_ubx) return false;
@@ -150,10 +159,9 @@ uint16_t gpxLoggingFileWriteCount;
 /********************************************************************/
 bool sdcard_openGPXLoggingFile() {
   if(!sdcardEnabled) return false;
+  gpxLoggingFileNum = sdcard_getAvailableLogFileNumber("GPSLOG", "gpx");
+  if(gpxLoggingFileNum > 99) return false;
   sprintf(gpxLoggingFileName, "/GPSLOG%02d.gpx", gpxLoggingFileNum);
-  if(SD.exists(gpxLoggingFileName)) {
-    if(!SD.remove(gpxLoggingFileName)) return false;
-  }
   //SdFile::dateTimeCallback(sdDateTimeCB);
   sdFile_gpx = SD.open(gpxLoggingFileName, FILE_WRITE);
   if(!sdFile_gpx) return false;
@@ -195,10 +203,9 @@ uint16_t kmlLoggingFileWriteCount;
 /********************************************************************/
 bool sdcard_openKMLLoggingFile() {
   if(!sdcardEnabled) return false;
+  kmlLoggingFileNum = sdcard_getAvailableLogFileNumber("GPSLOG", "kml");
+  if(kmlLoggingFileNum > 99) return false;
   sprintf(kmlLoggingFileName, "/GPSLOG%02d.kml", kmlLoggingFileNum);
-  if(SD.exists(kmlLoggingFileName)) {
-    if(!SD.remove(kmlLoggingFileName)) return false;
-  }
   //SdFile::dateTimeCallback(sdDateTimeCB);
   sdFile_kml = SD.open(kmlLoggingFileName, FILE_WRITE);
   if(!sdFile_kml) return false;
@@ -245,10 +252,9 @@ uint16_t csvLoggingFileWriteCount;
 /********************************************************************/
 bool sdcard_openCSVLoggingFile() {
   if(!sdcardEnabled) return false;
+  csvLoggingFileNum = sdcard_getAvailableLogFileNumber("GPSLOG", "csv");
+  if(csvLoggingFileNum > 99) return false;
   sprintf(csvLoggingFileName, "/GPSLOG%02d.csv", csvLoggingFileNum);
-  if(SD.exists(csvLoggingFileName)) {
-    if(!SD.remove(csvLoggingFileName)) return false;
-  }
   //SdFile::dateTimeCallback(sdDateTimeCB);
   sdFile_csv = SD.open(csvLoggingFileName, FILE_WRITE);
   if(!sdFile_csv) return false;
@@ -285,6 +291,10 @@ uint16_t sdcard_closeCSVLoggingFile() {
 }
 
 /********************************************************************/
+// GPS Calibration
+/********************************************************************/
+
+/********************************************************************/
 // GNSS Calibrate File Writer
 /********************************************************************/
 uint32_t gnssCalibrateFileWriteCount;
@@ -310,6 +320,10 @@ uint16_t sdcard_closeGNSSCalibrateFile() {
   sdFile.close();
   return gnssCalibrateFileWriteCount;
 }
+
+/********************************************************************/
+// GPS Emulation
+/********************************************************************/
 
 /********************************************************************/
 // UBX Emulation Loop File Reader
@@ -344,6 +358,10 @@ bool sdcard_readUBXInputFile(uint8_t* value) {
 void sdcard_closeUBXInputFile() {
   sdFile_ubx.close();
 }
+
+/********************************************************************/
+// GPS Packet Debugging
+/********************************************************************/
 
 /********************************************************************/
 // Rx Pkt File Writer
