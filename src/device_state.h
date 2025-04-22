@@ -27,7 +27,7 @@ typedef struct {
   int16_t  TIMEZONE = 0;
   int16_t  DEVICE_MODE = DM_IDLE;
   uint8_t  GPS_RESETMODE = GPS_NORESET;
-  uint8_t  GPS_UBXNAVSATRATE = 10;
+  uint8_t  GPS_UBXNAVSATRATE = 1;
   uint8_t  GPS_LOGUBXMODE = GPS_LOGUBX_ALL;
   bool     GPS_LOGGPX = false;
   bool     GPS_LOGKML = true;
