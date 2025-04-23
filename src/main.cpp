@@ -53,6 +53,10 @@ HardwareSerial *emulatorSerial;
 #include "logger.h"
 
 /********************************************************************/
+// Satellite Calibration
+#include "calibration.h"
+
+/********************************************************************/
 // Display
 #include "display_menu.h"
 #include "msg.h"
@@ -60,10 +64,6 @@ HardwareSerial *emulatorSerial;
 /********************************************************************/
 // Satellite Constellation
 #include "constellation.h"
-
-/********************************************************************/
-// Satellite Calibration
-#include "calibration.h"
 
 /********************************************************************/
 // GNSS Utilites

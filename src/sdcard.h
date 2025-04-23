@@ -100,7 +100,6 @@ uint16_t sdcard_closeGNSSConfigFile() {
 /********************************************************************/
 // GPS Logging
 /********************************************************************/
-bool gpsLoggingInProgress = false;
 uint8_t sdcard_getAvailableLogFileNumber(const char* prefix, const char* ext) {
   char tempFileName[14]={0};
   for(uint8_t fileNum=0; fileNum<100; fileNum++) {

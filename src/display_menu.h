@@ -145,6 +145,12 @@ TeenyMenuItem menuItemGPSSatCalLabel10("");
 TeenyMenuItem menuItemGPSSatCalLabel11("");
 TeenyMenuItem menuItemGPSSatCalLabel12("");
 //
+// gps calibration start/stop
+void menu_startGPSSatCalCB(); // forward declaration
+TeenyMenuItem menuItemGPSSatCalStrt("Start Calibration", menu_startGPSSatCalCB);
+void menu_stopGPSSatCalCB(); // forward declaration
+TeenyMenuItem menuItemGPSSatCalStop("Stop Calibration", menu_stopGPSSatCalCB);
+//
 // gps satellite config unit
 //
 void menu_entrGPSSatCfgCB(); // forward declaration
@@ -537,7 +543,9 @@ void menu_setup() {
   menuPageGPSSatCal.addMenuItem(menuItemGPSSatCalLabel10);
   menuPageGPSSatCal.addMenuItem(menuItemGPSSatCalLabel11);
   menuPageGPSSatCal.addMenuItem(menuItemGPSSatCalLabel12);
-  menuPageGPSSatCal.addMenuItem(menuItemGPSSatCalExit);
+  menuPageGPSSatCal.addMenuItem(menuItemGPSSatCalStrt);
+  menuPageGPSSatCal.addMenuItem(menuItemGPSSatCalStop);
+  //menuPageGPSSatCal.addMenuItem(menuItemGPSSatCalExit);
   menuPageMain.addMenuItem(menuItemGPSSatCfg);
   //menuPageGPSSatCfg.addMenuItem(menuItemGPSSatCfgLabel0);
   menuPageGPSSatCfg.addMenuItem(menuItemUbloxModuleType);
@@ -806,6 +814,8 @@ void menu_menuModeCB() {
       menuItemGPSEmulateM8.hide();
       menuItemGPSEmulateM10.hide();
       menuItemLabel3.hide();
+      menuItemGPSSatCalStrt.hide(satCalibrationInProgress ? true : false);;
+      menuItemGPSSatCalStop.hide(satCalibrationInProgress ? false : true);;
       break;
     case DM_GPSSCFG:
       menuItemGPSReceiver.hide();
@@ -934,10 +944,10 @@ void menu_startGPSLoggerCB() {
 /********************************************************************/
 void menu_stopGPSLoggerCB() {
   char _msgStr[22];
-  if(!gpsLoggingInProgress) return;
-  gpsLoggingInProgress = false;
   menuItemGPSLoggerStrtLog.show();
   menuItemGPSLoggerStopLog.hide();
+  if(!gpsLoggingInProgress) return;
+  gpsLoggingInProgress = false;
   if(deviceState.GPS_LOGUBXMODE != GPS_LOGUBX_NONE) {
     sprintf(_msgStr, "F%02d TR=%04d LV=%04d",
             ubxLoggingFileNum,
@@ -1030,15 +1040,33 @@ void menu_entrGPSSatCalCB() {
   display_processingMsg();
   deviceState.DEVICE_MODE = DM_GPSSCAL;
   deviceMode_init();
-  satCalibration_enter();
   displayRefresh = true;
+}
+
+/********************************************************************/
+void menu_startGPSSatCalCB() {
+  if(satCalibrationInProgress) return;
+  if(!satCalibration_enter()) return;
+  display_processingMsg();
+  menuItemGPSSatCalStrt.hide();
+  menuItemGPSSatCalStop.show();
+  msg_update("Calibration Started");
+}
+
+/********************************************************************/
+void menu_stopGPSSatCalCB() {
+  menuItemGPSSatCalStrt.show();
+  menuItemGPSSatCalStop.hide();
+  if(!satCalibrationInProgress) return;
+  display_processingMsg();
+  satCalibration_exit();
 }
 
 /********************************************************************/
 void menu_exitGPSSatCalCB() {
   display_processingMsg();
+  menu_stopGPSSatCalCB();
   deviceMode_end();
-  satCalibration_exit();
   menu.exitToParentMenuPage();
   displayRefresh = true;
 }

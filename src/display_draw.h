@@ -403,7 +403,11 @@ void display_refresh() {
         displayPV.prt_str(_dispStr, 20, 0, 170);
         displayPV.prt_str(satCalibration_getStatus(), 20, 0, 188);
         displaySS.drawSSSixDigitTime(satCalibration_getTimeRemaining()/1000,
-                                     60, 60, 43, 220, 18, 5, WHITE);
+                                     60, 60, 43, 210, 18, 5, WHITE);
+        if(satCalibrationInProgress) {
+          sprintf(_dispStr, "  %s", gnssCalibrateFileName);
+          displayPV.prt_str(_dispStr, 20, 0, 252);
+        }
       } else if(menu.isMenuPageCurrent(menuPageGPSSatCfg)) {
       } else if(menu.isMenuPageCurrent(menuPageGNSSSelInfo)) {
         ubloxMONGNSSInfo_t gnssSelectInfo = gps.getGNSSSelectionInfo();

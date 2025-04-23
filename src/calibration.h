@@ -1,5 +1,9 @@
 
 /********************************************************************/
+// GNSS Calibration
+/********************************************************************/
+
+/********************************************************************/
 // Satellite Configurations
 /********************************************************************/
 typedef struct {
@@ -10,6 +14,11 @@ typedef struct {
   ubloxCFGGNSSState_t GLONASS    = {0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, -1};
 } satcalGNSSConfigList_t;
 satcalGNSSConfigList_t satcalGNSSConfigList;
+
+/********************************************************************/
+// forward declarations
+bool msg_update(const char* msgStr);
+void menu_stopGPSSatCalCB();
 
 /********************************************************************/
 // Satellite Calibration Steps
@@ -36,6 +45,7 @@ enum satcal_step_t : uint8_t {
 /********************************************************************/
 // Global Variables
 /********************************************************************/
+bool     satCalibrationInProgress = false;
 uint8_t  satcalErrorCode;
 uint8_t  satcalUbloxModuleType;
 bool     satcalIsUbloxM10Module;
@@ -45,7 +55,7 @@ uint32_t satcalStartTime;
 uint32_t satcalStepStartTime;
 uint32_t satcalTTF2DF;
 uint32_t satcalTTF3DF;
-const char* satcalStatusStr;
+const char* satcalStatusStr = "-SCAN NOT STARTED";
 ubloxCFGGNSSState_t satcalGNSSConfigState_config;
 ubloxCFGGNSSState_t satcalGNSSConfigState_factory;
 bool     satcalIsCurrentConfigStateUnique;
@@ -97,6 +107,7 @@ bool satCalibration_enter() {
       if(sdcard_openGNSSCalibrateFile()) {
         satCalibration_writeHeader();
         satcalStep = SC_GPS_START;
+        satCalibrationInProgress = true;
         msg_update("GNSS CAL GPS SETUP");
         return true;
       } else {
@@ -122,6 +133,7 @@ bool satCalibration_enter() {
 /********************************************************************/
 // call in main loop (not ISR safe)
 void satCalibration_tick() {
+  if(!satCalibrationInProgress) return;
   if(satcalStep == SC_END) return;
   switch(satcalStep) {
     case SC_GPS_START:
@@ -317,6 +329,8 @@ void satCalibration_tick() {
       }
       sdcard_closeGNSSCalibrateFile();
       satcalStep = SC_END;
+      satCalibrationInProgress = false;
+      menu_stopGPSSatCalCB();
       break;
   }
 }
@@ -481,6 +495,7 @@ const char* satCalibration_getStatus() {
 
 /********************************************************************/
 uint32_t satCalibration_getTimeRemaining() {
+  if(!satCalibrationInProgress) return 0;
   uint32_t _timeUsed = millis() - satcalStepStartTime;
   uint32_t _timeRemaining = (_timeUsed <= satcalStepPeriod) ?
                               (satcalStepPeriod - _timeUsed) : 0;
