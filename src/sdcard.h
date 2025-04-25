@@ -2,8 +2,7 @@
 /********************************************************************/
 // SD Card
 /********************************************************************/
-bool sdcardEnabled;
-#include <SPI.h>
+bool sdcardEnabled = false;
 #include <SD.h>
 // m5stack core2 chip select = 4
 const int sdChipSelect = 4;
@@ -24,15 +23,6 @@ bool sdcard_setup() {
 }
 
 /********************************************************************/
-//void sdDateTimeCB(uint16_t* date, uint16_t* time) {
-//  rtc_datetime_t now = getRTCTime(); // get the RTC
-//  // return date using FAT_DATE macro to format fields
-//  *date = FAT_DATE(now.year, now.month, now.day);
-//  // return time using FAT_TIME macro to format fields
-//  *time = FAT_TIME(now.hour, now.minute, now.second);
-//}
-
-/********************************************************************/
 // Config File Save/restore
 /********************************************************************/
 bool sdcard_deviceStateReset() {
@@ -46,7 +36,6 @@ bool sdcard_deviceStateReset() {
 bool sdcard_deviceStateSave() {
   if(!writeDeviceStateKVS()) return false;
   if(!sdcard_deviceStateReset()) return false;
-  //SdFile::dateTimeCallback(sdDateTimeCB);
   sdFile = SD.open("/TEENYGPS.cfg", FILE_WRITE);
   if(!sdFile) return false;
   sdFile.write(deviceStateKVSArray, deviceStateKVS.used_bytes());
@@ -80,7 +69,6 @@ bool sdcard_openGNSSConfigFile() {
   if(SD.exists("/GNSSCNFG.txt")) {
     if(!SD.remove("/GNSSCNFG.txt")) return false;
   }
-  //SdFile::dateTimeCallback(sdDateTimeCB);
   sdFile = SD.open("/GNSSCNFG.txt", FILE_WRITE);
   if(!sdFile) return false;
   gnssConfigFileWriteCount = 0;
@@ -125,7 +113,6 @@ bool sdcard_openUBXLoggingFile() {
   ubxLoggingFileNum = sdcard_getAvailableLogFileNumber("UBXLOG", "hex");
   if(ubxLoggingFileNum > 99) return false;
   sprintf(ubxLoggingFileName, "/UBXLOG%02d.hex", ubxLoggingFileNum);
-  //SdFile::dateTimeCallback(sdDateTimeCB);
   sdFile_ubx = SD.open(ubxLoggingFileName, FILE_WRITE);
   if(!sdFile_ubx) return false;
   ubxLoggingFileWriteCount = 0;
@@ -161,7 +148,6 @@ bool sdcard_openGPXLoggingFile() {
   gpxLoggingFileNum = sdcard_getAvailableLogFileNumber("GPSLOG", "gpx");
   if(gpxLoggingFileNum > 99) return false;
   sprintf(gpxLoggingFileName, "/GPSLOG%02d.gpx", gpxLoggingFileNum);
-  //SdFile::dateTimeCallback(sdDateTimeCB);
   sdFile_gpx = SD.open(gpxLoggingFileName, FILE_WRITE);
   if(!sdFile_gpx) return false;
   sdFile_gpx.write((uint8_t*)"<gpx version=\"1.1\" creator=\"TeenyGPSTestbed\">\n",
@@ -205,7 +191,6 @@ bool sdcard_openKMLLoggingFile() {
   kmlLoggingFileNum = sdcard_getAvailableLogFileNumber("GPSLOG", "kml");
   if(kmlLoggingFileNum > 99) return false;
   sprintf(kmlLoggingFileName, "/GPSLOG%02d.kml", kmlLoggingFileNum);
-  //SdFile::dateTimeCallback(sdDateTimeCB);
   sdFile_kml = SD.open(kmlLoggingFileName, FILE_WRITE);
   if(!sdFile_kml) return false;
   sdFile_kml.write((uint8_t*)"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
@@ -254,7 +239,6 @@ bool sdcard_openCSVLoggingFile() {
   csvLoggingFileNum = sdcard_getAvailableLogFileNumber("GPSLOG", "csv");
   if(csvLoggingFileNum > 99) return false;
   sprintf(csvLoggingFileName, "/GPSLOG%02d.csv", csvLoggingFileNum);
-  //SdFile::dateTimeCallback(sdDateTimeCB);
   sdFile_csv = SD.open(csvLoggingFileName, FILE_WRITE);
   if(!sdFile_csv) return false;
   // write header
@@ -305,7 +289,6 @@ bool sdcard_openGNSSCalibrateFile() {
   gnssCalibrateFileNum = sdcard_getAvailableLogFileNumber("GPSCAL", "csv");
   if(gnssCalibrateFileNum > 99) return false;
   sprintf(gnssCalibrateFileName, "/GPSCAL%02d.csv", gnssCalibrateFileNum);
-  //SdFile::dateTimeCallback(sdDateTimeCB);
   sdFile = SD.open(gnssCalibrateFileName, FILE_WRITE);
   if(!sdFile) return false;
   gnssCalibrateFileWriteCount = 0;
@@ -379,7 +362,6 @@ bool sdcard_openRxPktFile() {
   if(SD.exists(rxPktFileName)) {
     if(!SD.remove(rxPktFileName)) return false;
   }
-  //SdFile::dateTimeCallback(sdDateTimeCB);
   sdFile = SD.open(rxPktFileName, FILE_WRITE);
   if(!sdFile) return false;
   return true;
