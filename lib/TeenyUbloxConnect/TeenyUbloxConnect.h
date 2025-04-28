@@ -508,7 +508,6 @@ class TeenyUbloxConnect {
     uint32_t getHeadingAccEst();
     uint16_t getPDOP();
     bool     getInvalidLlh();
-    void     resetNAVSTATUSInfo(); // reset spoofing flags
 
     // Ublox navsat data access
     void     getNAVSATPacket(uint8_t *packet_); // Get the full NAV-SAT packet
@@ -518,6 +517,7 @@ class TeenyUbloxConnect {
     // Ublox navstatus data access
     void     getNAVSTATUSPacket(uint8_t *packet_); // Get the full NAV-STATUS packet
     void     getNAVSTATUSInfo(ubloxNAVSTATUSInfo_t &info_); // summary
+    void     resetNAVSTATUSInfo(); // reset spoofing flags
 
     // Access lost packet counts
     uint8_t  getLostRxPacketCount();

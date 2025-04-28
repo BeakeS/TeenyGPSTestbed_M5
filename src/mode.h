@@ -8,7 +8,7 @@ void deviceMode_init() {
       break;
     case DM_GPSRCVR:
       //statusLED.pulse_repeat(1);
-      rtc.setValid(false);
+      rtc.resetRTCTime();
       gpsSerial = &Serial2;
       if(gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, deviceState.GPS_RESETMODE, 1, 0, 0, true)) {
         gpsEnabled = true;
@@ -24,7 +24,7 @@ void deviceMode_init() {
       break;
     case DM_GPSLOGR:
       //statusLED.pulse_repeat(1);
-      rtc.setValid(false);
+      rtc.resetRTCTime();
       gpsSerial = &Serial2;
       if(gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, deviceState.GPS_RESETMODE, 1, deviceState.GPS_UBXNAVSATRATE, 1, true)) {
         gpsEnabled = true;
@@ -32,7 +32,6 @@ void deviceMode_init() {
                 gps.getProtocolVersionHigh(),
                 gps.getProtocolVersionLow());
         msg_update(_dispStr);
-        gps_writeGNSSConfigFile();
         deviceState.GPS_RESETMODE = GPS_NORESET;
       } else {
         gpsEnabled = false;
@@ -41,7 +40,7 @@ void deviceMode_init() {
       break;
     case DM_GPSNSAT:
       //statusLED.pulse_repeat(1);
-      rtc.setValid(false);
+      rtc.resetRTCTime();
       gpsSerial = &Serial2;
       if(gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, deviceState.GPS_RESETMODE, 1, deviceState.GPS_UBXNAVSATRATE, 0, true)) {
         gpsEnabled = true;
@@ -57,7 +56,7 @@ void deviceMode_init() {
       break;
     case DM_GPSSTAT:
       //statusLED.pulse_repeat(1);
-      rtc.setValid(false);
+      rtc.resetRTCTime();
       gpsSerial = &Serial2;
       if(gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, deviceState.GPS_RESETMODE, 1, 0, 1, true)) {
         gpsEnabled = true;
@@ -73,7 +72,7 @@ void deviceMode_init() {
       break;
     case DM_GPSSCAL:
       //statusLED.pulse_repeat(1);
-      rtc.setValid(false);
+      rtc.resetRTCTime();
       gpsSerial = &Serial2;
       if(gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_NORESET, 0, 0, 0)) {
         gpsEnabled = true;
@@ -89,7 +88,7 @@ void deviceMode_init() {
       break;
     case DM_GPSSCFG:
       //statusLED.pulse_repeat(1);
-      rtc.setValid(false);
+      rtc.resetRTCTime();
       gpsSerial = &Serial2;
       if(gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_NORESET, 0, 0, 0)) {
         gpsEnabled = true;
@@ -105,7 +104,7 @@ void deviceMode_init() {
       break;
     case DM_GPSSSTP:
       //statusLED.pulse_repeat(1);
-      rtc.setValid(false);
+      rtc.resetRTCTime();
       gpsSerial = &Serial2;
 #ifdef CONFIG_IDF_TARGET_ESP32S3 // Core S3SE fix using the correct serial pins
       gpsSerial->begin(GPS_BAUD_RATE, SERIAL_8N1, RXD2, TXD2);
@@ -116,7 +115,7 @@ void deviceMode_init() {
       break;
     case DM_GPSEMU_M8:
       //statusLED.pulse_repeat(1);
-      rtc.setValid(false);
+      rtc.resetRTCTime();
       emulatorSerial = &Serial2;
       if(emulator_setup(*emulatorSerial, UBLOX_M8_EMULATOR_BAUD_RATE, TGPSE_UBX_M8_MODULE,
                         deviceState.EMU_UBXPKTLOOPENABLE, deviceState.EMU_UBXPKTSOURCE)) {
@@ -127,7 +126,7 @@ void deviceMode_init() {
       break;
     case DM_GPSEMU_M10:
       //statusLED.pulse_repeat(1);
-      rtc.setValid(false);
+      rtc.resetRTCTime();
       emulatorSerial = &Serial2;
       if(emulator_setup(*emulatorSerial, UBLOX_M10_EMULATOR_BAUD_RATE, TGPSE_UBX_M10_MODULE,
                         deviceState.EMU_UBXPKTLOOPENABLE, deviceState.EMU_UBXPKTSOURCE)) {
@@ -216,6 +215,6 @@ void deviceMode_end() {
   }
   deviceState.DEVICE_MODE = DM_IDLE;
   //statusLED.pulse_repeat(1, 20);
-  //rtc.setValid(false);
+  //rtc.resetRTCTime();
 }
 

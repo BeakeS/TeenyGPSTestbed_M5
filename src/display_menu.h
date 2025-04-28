@@ -948,6 +948,7 @@ void menu_stopGPSLoggerCB() {
   menuItemGPSLoggerStopLog.hide();
   if(!gpsLoggingInProgress) return;
   gpsLoggingInProgress = false;
+  display_processingMsg();
   if(deviceState.GPS_LOGUBXMODE != GPS_LOGUBX_NONE) {
     sprintf(_msgStr, "F%02d TR=%04d LV=%04d",
             ubxLoggingFileNum,
@@ -982,6 +983,8 @@ void menu_stopGPSLoggerCB() {
   if(deviceState.GPS_LOGCSV) {
     sdcard_closeCSVLoggingFile();
   }
+  // capture gnss configuration
+  gps_writeGNSSConfigFile();
 }
 
 /********************************************************************/

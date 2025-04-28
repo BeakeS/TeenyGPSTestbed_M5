@@ -151,11 +151,11 @@ bool sdcard_openGPXLoggingFile() {
   sdFile_gpx = SD.open(gpxLoggingFileName, FILE_WRITE);
   if(!sdFile_gpx) return false;
   sdFile_gpx.write((uint8_t*)"<gpx version=\"1.1\" creator=\"TeenyGPSTestbed\">\n",
-                   strlen("<gpx version=\"1.1\" creator=\"TeenyGPSTestbed\">\n"));
+                      strlen("<gpx version=\"1.1\" creator=\"TeenyGPSTestbed\">\n"));
   sdFile_gpx.write((uint8_t*)"  <trk>\n",
-                   strlen("  <trk>\n"));
+                      strlen("  <trk>\n"));
   sdFile_gpx.write((uint8_t*)"    <trkseg>\n",
-                   strlen("    <trkseg>\n"));
+                      strlen("    <trkseg>\n"));
   gpxLoggingFileWriteCount = 0;
   return true;
 }
@@ -167,11 +167,11 @@ void sdcard_writeGPXLoggingFile(const uint8_t *buf, size_t size, bool append=fal
 /********************************************************************/
 uint16_t sdcard_closeGPXLoggingFile() {
   sdFile_gpx.write((uint8_t*)"    </trkseg>\n",
-                   strlen("    </trkseg>\n"));
+                      strlen("    </trkseg>\n"));
   sdFile_gpx.write((uint8_t*)"  </trk>\n",
-                   strlen("  </trk>\n"));
+                      strlen("  </trk>\n"));
   sdFile_gpx.write((uint8_t*)"</gpx>\n",
-                   strlen("</gpx>\n"));
+                      strlen("</gpx>\n"));
   sdFile_gpx.close();
   gpxLoggingFileNum++;
   if(gpxLoggingFileNum > 99) gpxLoggingFileNum = 0;
@@ -241,7 +241,6 @@ bool sdcard_openCSVLoggingFile() {
   sprintf(csvLoggingFileName, "/GPSLOG%02d.csv", csvLoggingFileNum);
   sdFile_csv = SD.open(csvLoggingFileName, FILE_WRITE);
   if(!sdFile_csv) return false;
-  // write header
   sdFile_csv.write((uint8_t*)"INDEX,GMT,VALIDLOC,LATITUDE,LONGITUDE,ALTITUDE,",
                       strlen("INDEX,GMT,VALIDLOC,LATITUDE,LONGITUDE,ALTITUDE,"));
   sdFile_csv.write((uint8_t*)"HEADING,HACCEST,VACCEST,FIXTYPE,",
@@ -264,9 +263,7 @@ void sdcard_writeCSVLoggingFile(const uint8_t *buf, size_t size, bool append=fal
 }
 /********************************************************************/
 uint16_t sdcard_closeCSVLoggingFile() {
-  // write footer
-  sdFile_csv.write((uint8_t*)"\n",
-                      strlen("\n"));
+  sdFile_csv.write((uint8_t*)"\n", strlen("\n"));
   sdFile_csv.close();
   csvLoggingFileNum++;
   if(csvLoggingFileNum > 99) csvLoggingFileNum = 0;
