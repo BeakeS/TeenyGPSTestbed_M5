@@ -66,10 +66,10 @@ uint32_t gnssConfigFileWriteCount;
 /********************************************************************/
 bool sdcard_openGNSSConfigFile() {
   if(!sdcardEnabled) return false;
-  if(SD.exists("/GNSSCNFG.txt")) {
-    if(!SD.remove("/GNSSCNFG.txt")) return false;
+  if(SD.exists("/GNSSCNFG.log")) {
+    if(!SD.remove("/GNSSCNFG.log")) return false;
   }
-  sdFile = SD.open("/GNSSCNFG.txt", FILE_WRITE);
+  sdFile = SD.open("/GNSSCNFG.log", FILE_WRITE);
   if(!sdFile) return false;
   gnssConfigFileWriteCount = 0;
   return true;
@@ -130,8 +130,6 @@ void sdcard_writeUBXLoggingFile(const uint8_t *buf, size_t size, bool locValid=f
 /********************************************************************/
 uint16_t sdcard_closeUBXLoggingFile() {
   sdFile_ubx.close();
-  ubxLoggingFileNum++;
-  if(ubxLoggingFileNum > 99) ubxLoggingFileNum = 0;
   return ubxLoggingFileWriteCount;
 }
 
@@ -173,8 +171,6 @@ uint16_t sdcard_closeGPXLoggingFile() {
   sdFile_gpx.write((uint8_t*)"</gpx>\n",
                       strlen("</gpx>\n"));
   sdFile_gpx.close();
-  gpxLoggingFileNum++;
-  if(gpxLoggingFileNum > 99) gpxLoggingFileNum = 0;
   return gpxLoggingFileWriteCount;
 }
 
@@ -222,8 +218,6 @@ uint16_t sdcard_closeKMLLoggingFile() {
   sdFile_kml.write((uint8_t*)"</kml>\n",
                       strlen("</kml>\n"));
   sdFile_kml.close();
-  kmlLoggingFileNum++;
-  if(kmlLoggingFileNum > 99) kmlLoggingFileNum = 0;
   return kmlLoggingFileWriteCount;
 }
 
@@ -265,8 +259,6 @@ void sdcard_writeCSVLoggingFile(const uint8_t *buf, size_t size, bool append=fal
 uint16_t sdcard_closeCSVLoggingFile() {
   sdFile_csv.write((uint8_t*)"\n", strlen("\n"));
   sdFile_csv.close();
-  csvLoggingFileNum++;
-  if(csvLoggingFileNum > 99) csvLoggingFileNum = 0;
   return csvLoggingFileWriteCount;
 }
 
@@ -300,6 +292,47 @@ void sdcard_writeGNSSCalibrateFile(const uint8_t *buf, size_t size) {
 uint16_t sdcard_closeGNSSCalibrateFile() {
   sdFile.close();
   return gnssCalibrateFileWriteCount;
+}
+
+/********************************************************************/
+// Delete Log Files
+/********************************************************************/
+int16_t sdcard_deleteLogFiles() {
+  if(!sdcardEnabled) return -1;
+  int16_t deleteCount = 0;
+  char tempFileName[14]={0};
+  for(uint8_t fileNum=0; fileNum<100; fileNum++) {
+    sprintf(tempFileName, "/%s%02d.%s", "UBXLOG", fileNum, "hex");
+    if(SD.exists(tempFileName)) {
+      if(!SD.remove(tempFileName)) return -1;
+      deleteCount++;
+    }
+    sprintf(tempFileName, "/%s%02d.%s", "GPSLOG", fileNum, "gpx");
+    if(SD.exists(tempFileName)) {
+      if(!SD.remove(tempFileName)) return -1;
+      deleteCount++;
+    }
+    sprintf(tempFileName, "/%s%02d.%s", "GPSLOG", fileNum, "kml");
+    if(SD.exists(tempFileName)) {
+      if(!SD.remove(tempFileName)) return -1;
+      deleteCount++;
+    }
+    sprintf(tempFileName, "/%s%02d.%s", "GPSLOG", fileNum, "csv");
+    if(SD.exists(tempFileName)) {
+      if(!SD.remove(tempFileName)) return -1;
+      deleteCount++;
+    }
+    sprintf(tempFileName, "/%s%02d.%s", "GPSCAL", fileNum, "hex");
+    if(SD.exists(tempFileName)) {
+      if(!SD.remove(tempFileName)) return -1;
+      deleteCount++;
+    }
+  }
+  if(SD.exists("/GNSSCNFG.log")) {
+    if(!SD.remove("/GNSSCNFG.log")) return -1;
+    deleteCount++;
+  }
+  return deleteCount;
 }
 
 /********************************************************************/

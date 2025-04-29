@@ -364,10 +364,14 @@ TeenyMenuItem menuItemGPSLogGPX("GPS Log GPX", deviceState.GPS_LOGGPX, nullptr, 
 TeenyMenuItem menuItemGPSLogKML("GPS Log KML", deviceState.GPS_LOGKML, nullptr, "NO", "YES");
 TeenyMenuItem menuItemGPSLogCSV("GPS Log CSV", deviceState.GPS_LOGCSV, nullptr, "NO", "YES");
 //
-// gps scan period
+// gps calibration scan period
 uint8_t menuGPSCalibrationPeriodMin = 1;
 uint8_t menuGPSCalibrationPeriodMax = 60;
 TeenyMenuItem menuItemGPSCalibrationPeriod("GNSSCalTime", deviceState.GPS_CALIBRATEPERIOD, menuGPSCalibrationPeriodMin, menuGPSCalibrationPeriodMax);
+//
+// gps delete all log files
+void menu_deleteGPSLogFilesCB(); // forward declaration
+TeenyMenuItem menuItemDeleteGPSLogFiles("Delete GPS Logs", menu_deleteGPSLogFilesCB);
 //
 // gps factory reset menu
 void menu_cancelGPSFactoryResetCB(); // forward declaration
@@ -623,6 +627,7 @@ void menu_setup() {
   menuPageGPSSettings.addMenuItem(menuItemGPSLogKML);
   menuPageGPSSettings.addMenuItem(menuItemGPSLogCSV);
   menuPageGPSSettings.addMenuItem(menuItemGPSCalibrationPeriod);
+  menuPageGPSSettings.addMenuItem(menuItemDeleteGPSLogFiles);
   menuPageGPSSettings.addMenuItem(menuItemGPSFactoryReset);
   menuPageGPSFactoryReset.addMenuItem(menuItemConfirmGPSFactoryReset);
   menuPageGPSFactoryReset.addMenuItem(menuItemGPSFactoryResetExit);
@@ -1285,6 +1290,19 @@ void menu_setRTC_CB() {
 }
 
 /********************************************************************/
+void menu_deleteGPSLogFilesCB() {
+  char _msgStr[22];
+  display_processingMsg();
+  int16_t deleteCount = sdcard_deleteLogFiles();
+  if(deleteCount >= 0) {
+    sprintf(_msgStr, "Deleted %d Logs", deleteCount);
+    msg_update(_msgStr);
+  } else {
+    msg_update("Delete Logs Failed");
+  }
+}
+
+/********************************************************************/
 void menu_cancelGPSFactoryResetCB() {
   menu.exitToParentMenuPage();
   msg_update("GPS Reset Canceled");
@@ -1296,7 +1314,7 @@ void menu_confirmGPSFactoryResetCB() {
   menu.exitToParentMenuPage();
   gpsSerial = &Serial2;
   if(gps.gnss_init(*gpsSerial, GPS_BAUD_RATE, GPS_NORESET, 0, 0) &&
-     gps.factoryReset()) {
+    gps.factoryReset()) {
     msg_update("GPS Reset Completed");
   } else {
     msg_update("GPS Reset Failed");
