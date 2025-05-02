@@ -369,9 +369,15 @@ uint8_t menuGPSCalibrationPeriodMin = 1;
 uint8_t menuGPSCalibrationPeriodMax = 60;
 TeenyMenuItem menuItemGPSCalibrationPeriod("GNSSCalTime", deviceState.GPS_CALIBRATEPERIOD, menuGPSCalibrationPeriodMin, menuGPSCalibrationPeriodMax);
 //
-// gps delete all log files
-void menu_deleteGPSLogFilesCB(); // forward declaration
-TeenyMenuItem menuItemDeleteGPSLogFiles("Delete GPS Logs", menu_deleteGPSLogFilesCB);
+// gps factory reset menu
+void menu_cancelDeleteGPSLogFilesCB(); // forward declaration
+TeenyMenuPage menuPageDeleteGPSLogFiles("DELETE GPS LOGS", nullptr, menu_cancelDeleteGPSLogFilesCB);
+TeenyMenuItem menuItemDeleteGPSLogFiles("Delete GPS Logs", menuPageDeleteGPSLogFiles);
+TeenyMenuItem menuItemDeleteGPSLogFilesExit(false); // optional return menu item
+//
+// gps confirm delete all log files
+void menu_confirmDeleteGPSLogFilesCB(); // forward declaration
+TeenyMenuItem menuItemConfirmDeleteGPSLogFiles("Confirm Delete?", menu_confirmDeleteGPSLogFilesCB);
 //
 // gps factory reset menu
 void menu_cancelGPSFactoryResetCB(); // forward declaration
@@ -379,7 +385,7 @@ TeenyMenuPage menuPageGPSFactoryReset("GPS FACTORY RESET", nullptr, menu_cancelG
 TeenyMenuItem menuItemGPSFactoryReset("GPS Factory Reset", menuPageGPSFactoryReset);
 TeenyMenuItem menuItemGPSFactoryResetExit(false); // optional return menu item
 //
-// confirm gps reset
+// gps confirm reset
 void menu_confirmGPSFactoryResetCB(); // forward declaration
 TeenyMenuItem menuItemConfirmGPSFactoryReset("Confirm Reset?", menu_confirmGPSFactoryResetCB);
 //
@@ -628,6 +634,8 @@ void menu_setup() {
   menuPageGPSSettings.addMenuItem(menuItemGPSLogCSV);
   menuPageGPSSettings.addMenuItem(menuItemGPSCalibrationPeriod);
   menuPageGPSSettings.addMenuItem(menuItemDeleteGPSLogFiles);
+  menuPageDeleteGPSLogFiles.addMenuItem(menuItemConfirmDeleteGPSLogFiles);
+  menuPageDeleteGPSLogFiles.addMenuItem(menuItemDeleteGPSLogFilesExit);
   menuPageGPSSettings.addMenuItem(menuItemGPSFactoryReset);
   menuPageGPSFactoryReset.addMenuItem(menuItemConfirmGPSFactoryReset);
   menuPageGPSFactoryReset.addMenuItem(menuItemGPSFactoryResetExit);
@@ -1290,9 +1298,16 @@ void menu_setRTC_CB() {
 }
 
 /********************************************************************/
-void menu_deleteGPSLogFilesCB() {
+void menu_cancelDeleteGPSLogFilesCB() {
+  menu.exitToParentMenuPage();
+  msg_update("Delete Logs Canceled");
+}
+
+/********************************************************************/
+void menu_confirmDeleteGPSLogFilesCB() {
   char _msgStr[22];
   display_processingMsg();
+  menu.exitToParentMenuPage();
   int16_t deleteCount = sdcard_deleteLogFiles();
   if(deleteCount >= 0) {
     sprintf(_msgStr, "Deleted %d Logs", deleteCount);
