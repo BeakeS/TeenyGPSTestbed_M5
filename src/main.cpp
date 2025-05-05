@@ -207,8 +207,6 @@ void setup() {
 /********************************************************************/
 void loop() {
 
-  uint32_t _nowMS = millis();
-
   // Update clock
   rtc_datetime_t _rtcTime = rtc.getRTCTime(); // get the RTC
   uint32_t _clockTime = (uint32_t)(_rtcTime.hour*3600) + (uint32_t)(_rtcTime.minute*60) + _rtcTime.second;
@@ -293,30 +291,42 @@ void loop() {
     display_update();  // push sprite to display
   }
 
-  // Check loop timing
-  static uint32_t max_loop_check=_nowMS;
-  static uint32_t min_loop_time=999;
-  static uint32_t max_loop_time=0;
-  static uint32_t sum_loop_time=0;
-  static uint32_t sum_loop_count=0;
+  // debug loop timing
+  static uint32_t _startLoopUS    = micros();
+  static uint32_t _max_loop_check = _startLoopUS;
+  static uint32_t _min_loop_time  = UINT32_MAX;
+  static uint32_t _max_loop_time  = 0;
+  static uint32_t _sum_loop_time  = 0;
+  static uint32_t _sum_loop_count = 0;
   if(deviceState.DEBUGLOOPTIMING) {
-    if(_nowMS-max_loop_check > 4000) {
-      max_loop_check = _nowMS;
-      min_loop_time=999;
-      max_loop_time = 0;
-      sum_loop_time=0;
-      sum_loop_count=0;
+    // Check/Update loop timing window
+    if(_startLoopUS - _max_loop_check > 4000000) {
+      _max_loop_check = _startLoopUS;
+      _min_loop_time  = UINT32_MAX;
+      _max_loop_time  = 0;
+      _sum_loop_time  = 0;
+      _sum_loop_count = 0;
     }
-    if(millis()-_nowMS > max_loop_time) {
-      min_loop_time = min(min_loop_time, millis()-_nowMS);
-      max_loop_time = max(max_loop_time, millis()-_nowMS);
-      sum_loop_time += millis()-_nowMS;
-      sum_loop_count++;
+    // Capture loop time
+    uint32_t _endLoopUS = micros();
+    uint32_t _loopTime  = _endLoopUS - _startLoopUS;
+    bool _updateLoopMsg = (_sum_loop_count == 0) ||
+                          (_loopTime < _min_loop_time) ||
+                          (_loopTime > _max_loop_time);
+    _min_loop_time = min(_min_loop_time, _loopTime);
+    _max_loop_time = max(_max_loop_time, _loopTime);
+    _sum_loop_time += _loopTime;
+    _sum_loop_count++;
+    if(_updateLoopMsg) {
       char _tempStr[22];
-      sprintf(_tempStr, "LoopTime %d/%d/%d",
-              min_loop_time, sum_loop_time/sum_loop_count, max_loop_time);
+      sprintf(_tempStr, "LT %04d/%04d/%06d",
+              min(_min_loop_time, 9999),
+              min((_sum_loop_time / _sum_loop_count), 9999),
+              min(_max_loop_time, 999999));
       msg_update(_tempStr);
     }
+    // Set start time for next loop
+    _startLoopUS = _endLoopUS;
   }
 
 }
