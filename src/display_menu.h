@@ -445,7 +445,7 @@ TeenyMenuItem menuItemDisplayTimeout("Dsp Timeout", deviceState.DISPLAYTIMEOUT, 
 //TeenyMenuItem menuItemStatusLED("Status LED", deviceState.STATUSLED, nullptr, "OFF", "ON");
 //
 // debug loop timing
-TeenyMenuItem menuItemDebugLoopTimimg("DebugTiming", deviceState.DEBUGLOOPTIMING, nullptr, "OFF", "ON");
+TeenyMenuItem menuItemDebugLoopTiming("DebugTiming", deviceState.DEBUGLOOPTIMING, nullptr, "OFF", "ON");
 //
 // SAVE SETTINGS
 //
@@ -649,7 +649,7 @@ void menu_setup() {
   menuPageDeviceSettings.addMenuItem(menuItemDisplayBrightness);
   menuPageDeviceSettings.addMenuItem(menuItemDisplayTimeout);
   //menuPageDeviceSettings.addMenuItem(menuItemStatusLED);
-  menuPageDeviceSettings.addMenuItem(menuItemDebugLoopTimimg);
+  menuPageDeviceSettings.addMenuItem(menuItemDebugLoopTiming);
   menuPageDeviceSettings.addMenuItem(menuItemDeviceSettingsExit); // optional return menu item
   menuPageTopLevelSettings.addMenuItem(menuItemSaveSettings);
   menuPageSaveSettings.addMenuItem(menuItemConfirmSaveSettings);

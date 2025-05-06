@@ -291,7 +291,7 @@ void loop() {
     display_update();  // push sprite to display
   }
 
-  // debug loop timing
+  // Debug loop timing
   static uint32_t _startLoopUS    = micros();
   static uint32_t _max_loop_check = _startLoopUS;
   static uint32_t _min_loop_time  = UINT32_MAX;
