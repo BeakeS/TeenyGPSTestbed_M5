@@ -927,6 +927,10 @@ void menu_entrGPSLoggerCB() {
 /********************************************************************/
 void menu_startGPSLoggerCB() {
   if(gpsLoggingInProgress) return;
+  if(!gpsEnabled) {
+    msg_update("ERROR - GPS Missing");
+    return;
+  }
   if((deviceState.GPS_LOGUBXMODE == GPS_LOGUBX_NONE) &&
      !(deviceState.GPS_LOGGPX || deviceState.GPS_LOGKML || deviceState.GPS_LOGCSV)) {
     msg_update("GPS Logging Disabled");

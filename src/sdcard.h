@@ -7,6 +7,7 @@ bool sdcardEnabled = false;
 // m5stack core2 chip select = 4
 const int sdChipSelect = 4;
 File sdFile; // SD file pointer
+File sdFile_cfg; // SD file pointer
 File sdFile_ubx; // SD file pointer
 File sdFile_gpx; // SD file pointer
 File sdFile_kml; // SD file pointer
@@ -36,19 +37,19 @@ bool sdcard_deviceStateReset() {
 bool sdcard_deviceStateSave() {
   if(!writeDeviceStateKVS()) return false;
   if(!sdcard_deviceStateReset()) return false;
-  sdFile = SD.open("/TEENYGPS.cfg", FILE_WRITE);
-  if(!sdFile) return false;
-  sdFile.write(deviceStateKVSArray, deviceStateKVS.used_bytes());
-  sdFile.close();
+  File _sdFile = SD.open("/TEENYGPS.cfg", FILE_WRITE);
+  if(!_sdFile) return false;
+  _sdFile.write(deviceStateKVSArray, deviceStateKVS.used_bytes());
+  _sdFile.close();
   return true;
 }
 /********************************************************************/
 bool sdcard_deviceStateRestore() {
   if(sdcardEnabled && SD.exists("/TEENYGPS.cfg")) {
-    sdFile = SD.open("/TEENYGPS.cfg");
-    if(sdFile) {
-      sdFile.read(deviceStateKVSArray, min(sdFile.size(), sizeof(deviceStateKVSArray)));
-      sdFile.close();
+    File _sdFile = SD.open("/TEENYGPS.cfg");
+    if(_sdFile) {
+      _sdFile.read(deviceStateKVSArray, min(_sdFile.size(), sizeof(deviceStateKVSArray)));
+      _sdFile.close();
       if(readDeviceStateKVS()) {
         return true;
       }
@@ -57,32 +58,6 @@ bool sdcard_deviceStateRestore() {
   }
   deviceState = deviceState_defaults;
   return false;
-}
-
-/********************************************************************/
-// GNSS Config File Writer
-/********************************************************************/
-uint32_t gnssConfigFileWriteCount;
-/********************************************************************/
-bool sdcard_openGNSSConfigFile() {
-  if(!sdcardEnabled) return false;
-  if(SD.exists("/GNSSCNFG.log")) {
-    if(!SD.remove("/GNSSCNFG.log")) return false;
-  }
-  sdFile = SD.open("/GNSSCNFG.log", FILE_WRITE);
-  if(!sdFile) return false;
-  gnssConfigFileWriteCount = 0;
-  return true;
-}
-/********************************************************************/
-void sdcard_writeGNSSConfigFile(const uint8_t *buf, size_t size) {
-  sdFile.write(buf, size);
-  gnssConfigFileWriteCount++;
-}
-/********************************************************************/
-uint16_t sdcard_closeGNSSConfigFile() {
-  sdFile.close();
-  return gnssConfigFileWriteCount;
 }
 
 /********************************************************************/
@@ -100,6 +75,36 @@ uint8_t sdcard_getAvailableLogFileNumber(const char* prefix, const char* ext) {
 }
 
 /********************************************************************/
+// GNSS Config File Writer
+/********************************************************************/
+uint8_t  gnssConfigFileNum = 0;
+char     gnssConfigFileName[14]={0};
+uint32_t gnssConfigFileWriteCount;
+/********************************************************************/
+bool sdcard_openGNSSConfigFile() {
+  if(!sdcardEnabled) return false;
+  gnssConfigFileNum = sdcard_getAvailableLogFileNumber("GPSLOG", "cfg");
+  if(gnssConfigFileNum > 99) return false;
+  sprintf(gnssConfigFileName, "/GPSLOG%02d.cfg", gnssConfigFileNum);
+  sdFile_cfg = SD.open(gnssConfigFileName, FILE_WRITE);
+  if(!sdFile_cfg) return false;
+  gnssConfigFileWriteCount = 0;
+  return true;
+}
+/********************************************************************/
+void sdcard_writeGNSSConfigFile(const uint8_t *buf, size_t size) {
+  if(!sdFile_cfg) return;
+  sdFile_cfg.write(buf, size);
+  gnssConfigFileWriteCount++;
+}
+/********************************************************************/
+uint16_t sdcard_closeGNSSConfigFile() {
+  if(!sdFile_cfg) return 0;
+  sdFile_cfg.close();
+  return gnssConfigFileWriteCount;
+}
+
+/********************************************************************/
 // UBX Logging File Writer
 /********************************************************************/
 uint8_t  ubxLoggingFileNum = 0;
@@ -110,9 +115,9 @@ uint32_t ubxLoggingFileWriteLocValidCount;
 /********************************************************************/
 bool sdcard_openUBXLoggingFile() {
   if(!sdcardEnabled) return false;
-  ubxLoggingFileNum = sdcard_getAvailableLogFileNumber("UBXLOG", "hex");
+  ubxLoggingFileNum = sdcard_getAvailableLogFileNumber("GPSLOG", "ubx");
   if(ubxLoggingFileNum > 99) return false;
-  sprintf(ubxLoggingFileName, "/UBXLOG%02d.hex", ubxLoggingFileNum);
+  sprintf(ubxLoggingFileName, "/GPSLOG%02d.ubx", ubxLoggingFileNum);
   sdFile_ubx = SD.open(ubxLoggingFileName, FILE_WRITE);
   if(!sdFile_ubx) return false;
   ubxLoggingFileWriteCount = 0;
@@ -122,6 +127,7 @@ bool sdcard_openUBXLoggingFile() {
 }
 /********************************************************************/
 void sdcard_writeUBXLoggingFile(const uint8_t *buf, size_t size, bool locValid=false, bool append=false) {
+  if(!sdFile_ubx) return;
   sdFile_ubx.write(buf, size);
   if(!append) ubxLoggingFileWriteCount++;
   ubxLoggingFileWritePktCount++;
@@ -129,6 +135,7 @@ void sdcard_writeUBXLoggingFile(const uint8_t *buf, size_t size, bool locValid=f
 }
 /********************************************************************/
 uint16_t sdcard_closeUBXLoggingFile() {
+  if(!sdFile_ubx) return 0;
   sdFile_ubx.close();
   return ubxLoggingFileWriteCount;
 }
@@ -159,11 +166,13 @@ bool sdcard_openGPXLoggingFile() {
 }
 /********************************************************************/
 void sdcard_writeGPXLoggingFile(const uint8_t *buf, size_t size, bool append=false) {
+  if(!sdFile_gpx) return;
   sdFile_gpx.write(buf, size);
   if(!append) gpxLoggingFileWriteCount++;
 }
 /********************************************************************/
 uint16_t sdcard_closeGPXLoggingFile() {
+  if(!sdFile_gpx) return 0;
   sdFile_gpx.write((uint8_t*)"    </trkseg>\n",
                       strlen("    </trkseg>\n"));
   sdFile_gpx.write((uint8_t*)"  </trk>\n",
@@ -204,11 +213,13 @@ bool sdcard_openKMLLoggingFile() {
 }
 /********************************************************************/
 void sdcard_writeKMLLoggingFile(const uint8_t *buf, size_t size, bool append=false) {
+  if(!sdFile_kml) return;
   sdFile_kml.write(buf, size);
   if(!append) kmlLoggingFileWriteCount++;
 }
 /********************************************************************/
 uint16_t sdcard_closeKMLLoggingFile() {
+  if(!sdFile_kml) return 0;
   sdFile_kml.write((uint8_t*)"    </gx:Track>\n",
                       strlen("    </gx:Track>\n"));
   sdFile_kml.write((uint8_t*)"  </Placemark>\n",
@@ -252,11 +263,13 @@ bool sdcard_openCSVLoggingFile() {
 }
 /********************************************************************/
 void sdcard_writeCSVLoggingFile(const uint8_t *buf, size_t size, bool append=false) {
+  if(!sdFile_csv) return;
   sdFile_csv.write(buf, size);
   if(!append) csvLoggingFileWriteCount++;
 }
 /********************************************************************/
 uint16_t sdcard_closeCSVLoggingFile() {
+  if(!sdFile_csv) return 0;
   sdFile_csv.write((uint8_t*)"\n", strlen("\n"));
   sdFile_csv.close();
   return csvLoggingFileWriteCount;
@@ -285,11 +298,14 @@ bool sdcard_openGNSSCalibrateFile() {
 }
 /********************************************************************/
 void sdcard_writeGNSSCalibrateFile(const uint8_t *buf, size_t size) {
+  if(!sdFile) return;
   sdFile.write(buf, size);
   gnssCalibrateFileWriteCount++;
 }
 /********************************************************************/
 uint16_t sdcard_closeGNSSCalibrateFile() {
+  if(!sdFile) return 0;
+  sdFile.write((uint8_t*)"\n", strlen("\n"));
   sdFile.close();
   return gnssCalibrateFileWriteCount;
 }
@@ -302,7 +318,12 @@ int16_t sdcard_deleteLogFiles() {
   int16_t deleteCount = 0;
   char tempFileName[14]={0};
   for(uint8_t fileNum=0; fileNum<100; fileNum++) {
-    sprintf(tempFileName, "/%s%02d.%s", "UBXLOG", fileNum, "hex");
+    sprintf(tempFileName, "/%s%02d.%s", "GPSLOG", fileNum, "cfg");
+    if(SD.exists(tempFileName)) {
+      if(!SD.remove(tempFileName)) return -1;
+      deleteCount++;
+    }
+    sprintf(tempFileName, "/%s%02d.%s", "GPSLOG", fileNum, "ubx");
     if(SD.exists(tempFileName)) {
       if(!SD.remove(tempFileName)) return -1;
       deleteCount++;
@@ -322,7 +343,7 @@ int16_t sdcard_deleteLogFiles() {
       if(!SD.remove(tempFileName)) return -1;
       deleteCount++;
     }
-    sprintf(tempFileName, "/%s%02d.%s", "GPSCAL", fileNum, "hex");
+    sprintf(tempFileName, "/%s%02d.%s", "GPSCAL", fileNum, "csv");
     if(SD.exists(tempFileName)) {
       if(!SD.remove(tempFileName)) return -1;
       deleteCount++;
@@ -346,7 +367,7 @@ char     ubxInputFileName[14]={0};
 /********************************************************************/
 bool sdcard_openUBXInputFile() {
   if(!sdcardEnabled) return false;
-  sprintf(ubxInputFileName, "/UBXINPUT.hex");
+  sprintf(ubxInputFileName, "/EMUINPUT.ubx");
   if(!SD.exists(ubxInputFileName)) {
     return false;
   }
@@ -370,6 +391,7 @@ bool sdcard_readUBXInputFile(uint8_t* value) {
 }
 /********************************************************************/
 void sdcard_closeUBXInputFile() {
+  if(!sdFile_ubx) return;
   sdFile_ubx.close();
 }
 
@@ -398,6 +420,7 @@ bool sdcard_openRxPktFile() {
 }
 /********************************************************************/
 void sdcard_writeRxPktFile() {
+  if(!sdFile) return;
   while(gpsSerial->available()) {
     sdFile.write(gpsSerial->read());
     rxPktWriteCount++;
@@ -405,6 +428,7 @@ void sdcard_writeRxPktFile() {
 }
 /********************************************************************/
 uint16_t sdcard_closeRxPktFile() {
+  if(!sdFile) return 0;
   sdFile.close();
   rxPktFileNum++;
   return rxPktWriteCount;

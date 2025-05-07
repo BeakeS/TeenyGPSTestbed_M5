@@ -21,8 +21,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 /********************************************************************/
 // UBX Emulation Loop Packets
 /********************************************************************/
-//#include "TeenyGPSEmulate.navPvtLoop.h"
-//#include "TeenyGPSEmulate.navPvtSatLoop.h"
 #include "TeenyGPSEmulate.navPvtSatStatusLoop.h"
 
 /********************************************************************/
@@ -87,6 +85,7 @@ bool TeenyGPSEmulate::reset() {
   sentNAVSTATUSPacketCount = 0;
   ubxLoopPacket.validPacket = false;
   ubxLoopPacketIndex = 0;
+  ubxPktLoopEnded = false;
   setEmuColdOutputPackets();
   return true;
 }
@@ -1072,6 +1071,13 @@ void TeenyGPSEmulate::setEmuColdOutputPackets() {
 
 /********************************************************************/
 bool TeenyGPSEmulate::setEmuLoopOutputPackets() {
+  if(ubxPktLoopEnded &&
+     !(ubxNAVPVTPacket.valid ||
+       ubxNAVSATPacket.valid ||
+       ubxNAVSTATUSPacket.valid)) {
+    reset();
+    return false;
+  }
   if(!processUBXLoopPacket()) return false;
   uint32_t _pktTimestamp = getUBXLoopPacketTimeStamp();
   // Check for up to three packets with same timestamp (NAVPVT, NAVSAT, NAVSTATUS)
@@ -1144,7 +1150,7 @@ uint8_t TeenyGPSEmulate::readUBXLoopByte(bool updateChecksum) {
   if(ubxFetch == nullptr) {
     if(ubxLoopPacketIndex >= sizeof(TGPSE_UBX_NAV_PVT_SAT_STATUS_LOOP_PACKETS)) {
       if(!ubxPktLoopEnable) {
-        reset();
+        ubxPktLoopEnded = true;
         return 0;
       }
       ubxLoopPacketIndex = 0;
@@ -1152,7 +1158,7 @@ uint8_t TeenyGPSEmulate::readUBXLoopByte(bool updateChecksum) {
     _value = TGPSE_UBX_NAV_PVT_SAT_STATUS_LOOP_PACKETS[ubxLoopPacketIndex++];
   } else {
     if(!ubxFetch(&_value)) {
-      reset();
+      ubxPktLoopEnded = true;
       return 0;
     }
   }

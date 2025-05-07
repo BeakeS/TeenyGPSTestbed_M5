@@ -46,8 +46,8 @@ enum tgpse_ubx_module_type_t : uint8_t {
 const uint8_t  TGPSE_COM_PORT_UART1 = 1;
 const uint8_t  TGPSE_COM_TYPE_UBX  = 0x01;
 const uint8_t  TGPSE_COM_TYPE_NMEA = 0x02;
-//const uint16_t TGPSE_UBX_MAXPAYLOADLENGTH = 872; // NAV-SAT message with 72 satellites
-const uint16_t TGPSE_UBX_MAXPAYLOADLENGTH = 392; // NAV-SAT message with 32 tracking channels
+const uint8_t  TGPSE_UBX_MAXNAVSATSATELLITES = 64; // Max payload determined by NAV-SAT max satellites
+const uint16_t TGPSE_UBX_MAXPAYLOADLENGTH = 8 + (12 * (uint16_t)TGPSE_UBX_MAXNAVSATSATELLITES);
 const uint8_t  TGPSE_UBX_SYNCH_1 = 0xB5;
 const uint8_t  TGPSE_UBX_SYNCH_2 = 0x62;
 const uint8_t  TGPSE_UBX_CLASS_NAV = 0x01;
@@ -452,11 +452,12 @@ class TeenyGPSEmulate {
     uint8_t  lostNAVSTATUSPacketCount;
     uint8_t  sentNAVSTATUSPacketCount;
 
-    uint8_t  readUBXLoopByte(bool updateChecksum=false);
-    bool     processUBXLoopPacket();
-    uint32_t ubxLoopPacketIndex;
-    uint32_t getUBXLoopPacketTimeStamp();
     bool     assignUBXLoopOutputPacket();
+    uint32_t getUBXLoopPacketTimeStamp();
+    bool     processUBXLoopPacket();
+    uint8_t  readUBXLoopByte(bool updateChecksum=false);
+    uint32_t ubxLoopPacketIndex;
+    bool     ubxPktLoopEnded;
 
     bool     isNAVPVTPacket();
     bool     setNAVPVTPacket();
